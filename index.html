@@ -3,1164 +3,630 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-    <!-- SEO -->
-    <title>DRIFT — AI Racing Betting on Robinhood Chain | driftrace.tech</title>
-    <meta name="description" content="First AI agent business on Robinhood Chain. Provably fair car racing betting — place bets on AI-driven races every 5 minutes. Instant payouts, 24/7 autonomous operation.">
-    <meta name="keywords" content="DRIFT, AI racing, betting, Robinhood Chain, blockchain, provably fair, crypto betting, car racing, PONS launchpad, $DRIFT token">
-    <meta name="author" content="DRIFT Protocol">
-    <link rel="canonical" href="https://driftrace.tech">
-    
-    <!-- Open Graph -->
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://driftrace.tech">
+    <title>🏎️ DRIFT — AI Racing Betting</title>
+    <meta name="description" content="First AI agent business on Robinhood Chain. Provably fair car racing betting every 5 minutes.">
     <meta property="og:title" content="DRIFT — AI Racing Betting on Robinhood Chain">
-    <meta property="og:description" content="First AI agent business on Robinhood Chain. Provably fair car racing betting every 5 minutes. Connect your wallet and bet now.">
-    <meta property="og:image" content="https://driftrace.tech/og-image.png">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    <meta property="og:site_name" content="DRIFT">
-    <meta property="og:locale" content="en_US">
-    
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:url" content="https://driftrace.tech">
-    <meta name="twitter:title" content="DRIFT — AI Racing Betting on Robinhood Chain">
-    <meta name="twitter:description" content="First AI agent business on Robinhood Chain. Provably fair racing bets every 5 minutes. 🏎️">
-    <meta name="twitter:image" content="https://driftrace.tech/og-image.png">
-    <meta name="twitter:site" content="@driftrace">
-    
-    <!-- Favicon -->
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏎️</text></svg>">
-    
-    <!-- Theme -->
+    <meta property="og:description" content="First AI agent business on Robinhood Chain. Provably fair racing bets every 5 minutes.">
+    <meta property="og:url" content="https://driftrace.tech">
     <meta name="theme-color" content="#0a0a0f">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏎️</text></svg>">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
+        * { margin:0; padding:0; box-sizing:border-box; }
         :root {
-            --bg: #0a0a0f;
-            --surface: #12121a;
-            --surface2: #1a1a25;
-            --border: #2a2a3a;
-            --primary: #00ff88;
-            --primary-dim: #00cc6a;
-            --secondary: #ff3366;
-            --accent: #00aaff;
-            --text: #e0e0e8;
-            --text-dim: #8888aa;
-            --gold: #ffd700;
-            --glow: 0 0 20px rgba(0, 255, 136, 0.3);
-        }
-        
-        body {
-            background: var(--bg);
-            color: var(--text);
-            font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
-        
-        /* ── Background Effect ───────────────────── */
-        
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: 
-                radial-gradient(ellipse at 20% 50%, rgba(0, 255, 136, 0.03) 0%, transparent 50%),
-                radial-gradient(ellipse at 80% 20%, rgba(0, 170, 255, 0.03) 0%, transparent 50%),
-                radial-gradient(ellipse at 50% 80%, rgba(255, 51, 102, 0.02) 0%, transparent 50%);
-            pointer-events: none;
-            z-index: -1;
-        }
-        
-        /* ── Header ─────────────────────────────── */
-        
-        header {
-            background: linear-gradient(180deg, rgba(18, 18, 26, 0.95) 0%, rgba(10, 10, 15, 0.9) 100%);
-            border-bottom: 1px solid var(--border);
-            padding: 0.8rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-        }
-        
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-        
-        .logo-icon {
-            font-size: 1.5rem;
-        }
-        
-        .logo-text h1 {
-            font-size: 1.6rem;
-            font-weight: 900;
-            background: linear-gradient(135deg, var(--primary), var(--accent));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            letter-spacing: -0.05em;
-            line-height: 1;
-        }
-        
-        .logo-text .tagline {
-            font-size: 0.55rem;
-            color: var(--text-dim);
-            text-transform: uppercase;
-            letter-spacing: 0.25em;
-            margin-top: 2px;
-        }
-        
-        .header-center {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-        
-        .chain-badge {
-            background: var(--surface2);
-            border: 1px solid var(--border);
-            padding: 0.35rem 0.8rem;
-            border-radius: 20px;
-            font-size: 0.65rem;
-            color: var(--text-dim);
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        
-        .chain-badge .dot {
-            width: 6px;
-            height: 6px;
-            background: var(--primary);
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-        
-        .stats-badge {
-            background: var(--surface2);
-            border: 1px solid var(--border);
-            padding: 0.35rem 0.8rem;
-            border-radius: 20px;
-            font-size: 0.65rem;
-            color: var(--accent);
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; box-shadow: 0 0 4px var(--primary); }
-            50% { opacity: 0.3; box-shadow: none; }
-        }
-        
-        .wallet-btn {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dim));
-            color: var(--bg);
-            border: none;
-            padding: 0.55rem 1.2rem;
-            border-radius: 8px;
-            font-family: inherit;
-            font-weight: 700;
-            font-size: 0.8rem;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .wallet-btn:hover {
-            box-shadow: var(--glow);
-            transform: translateY(-1px);
-        }
-        
-        .wallet-btn.connected {
-            background: var(--surface2);
-            color: var(--primary);
-            border: 1px solid rgba(0, 255, 136, 0.3);
-        }
-        
-        /* ── Hero Banner ────────────────────────── */
-        
-        .hero {
-            text-align: center;
-            padding: 2rem 2rem 1rem;
-        }
-        
-        .hero h2 {
-            font-size: 1.2rem;
-            font-weight: 600;
-            color: var(--text);
-            margin-bottom: 0.3rem;
-        }
-        
-        .hero h2 span {
-            color: var(--primary);
-        }
-        
-        .hero p {
-            font-size: 0.75rem;
-            color: var(--text-dim);
-        }
-        
-        /* ── Main Layout ─────────────────────────── */
-        
-        main {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 2rem 2rem;
-            display: grid;
-            grid-template-columns: 1fr 340px;
-            gap: 1.5rem;
-        }
-        
-        /* ── Race Card ───────────────────────────── */
-        
-        .race-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            overflow: hidden;
-            animation: fadeIn 0.5s ease;
-        }
-        
-        .race-header {
-            padding: 1.2rem 1.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--border);
-        }
-        
-        .race-id {
-            font-size: 1.1rem;
-            font-weight: 700;
-        }
-        
-        .race-status {
-            padding: 0.3rem 0.8rem;
-            border-radius: 20px;
-            font-size: 0.7rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        
-        .status-betting {
-            background: rgba(0, 255, 136, 0.15);
-            color: var(--primary);
-            border: 1px solid rgba(0, 255, 136, 0.3);
-            animation: pulse 1.5s infinite;
-        }
-        
-        .status-running {
-            background: rgba(255, 215, 0, 0.15);
-            color: var(--gold);
-            border: 1px solid rgba(255, 215, 0, 0.3);
-        }
-        
-        .status-settled {
-            background: rgba(136, 136, 170, 0.1);
-            color: var(--text-dim);
-            border: 1px solid var(--border);
-        }
-        
-        /* ── Timer ───────────────────────────────── */
-        
-        .timer-section {
-            padding: 2rem;
-            text-align: center;
-            background: linear-gradient(180deg, rgba(26, 26, 37, 0.5) 0%, transparent 100%);
-        }
-        
-        .timer-label {
-            font-size: 0.65rem;
-            color: var(--text-dim);
-            text-transform: uppercase;
-            letter-spacing: 0.2em;
-            margin-bottom: 0.5rem;
-        }
-        
-        .timer-value {
-            font-size: 3.5rem;
-            font-weight: 900;
-            color: var(--primary);
-            text-shadow: 0 0 40px rgba(0, 255, 136, 0.4);
-            font-variant-numeric: tabular-nums;
-            line-height: 1;
-        }
-        
-        .timer-value.warning { 
-            color: var(--secondary); 
-            text-shadow: 0 0 40px rgba(255, 51, 102, 0.4); 
-            animation: timerPulse 0.5s infinite;
-        }
-        
-        .timer-value.gold { 
-            color: var(--gold); 
-            text-shadow: 0 0 40px rgba(255, 215, 0, 0.4); 
-        }
-        
-        @keyframes timerPulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-        
-        /* ── Pool ────────────────────────────────── */
-        
-        .pool-section {
-            padding: 1.2rem 1.5rem;
-            display: flex;
-            justify-content: space-around;
-            border-top: 1px solid var(--border);
-            border-bottom: 1px solid var(--border);
-        }
-        
-        .pool-stat { text-align: center; }
-        
-        .pool-stat .value {
-            font-size: 1.4rem;
-            font-weight: 800;
-            color: var(--accent);
-        }
-        
-        .pool-stat .label {
-            font-size: 0.6rem;
-            color: var(--text-dim);
-            text-transform: uppercase;
-            letter-spacing: 0.12em;
-            margin-top: 0.2rem;
-        }
-        
-        /* ── Drivers Grid ────────────────────────── */
-        
-        .drivers-section { padding: 1.5rem; }
-        
-        .drivers-section h3 {
-            font-size: 0.65rem;
-            color: var(--text-dim);
-            text-transform: uppercase;
-            letter-spacing: 0.2em;
-            margin-bottom: 1rem;
-        }
-        
-        .drivers-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 0.6rem;
-        }
-        
-        .driver-card {
-            background: var(--surface2);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 1rem 0.6rem;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s;
-            position: relative;
-        }
-        
-        .driver-card:hover {
-            border-color: var(--primary);
-            transform: translateY(-2px);
-            box-shadow: var(--glow);
-        }
-        
-        .driver-card.selected {
-            border-color: var(--primary);
-            background: rgba(0, 255, 136, 0.08);
-        }
-        
-        .driver-card.winner {
-            border-color: var(--gold);
-            background: rgba(255, 215, 0, 0.08);
-            box-shadow: 0 0 20px rgba(255, 215, 0, 0.2);
-        }
-        
-        .driver-number {
-            font-size: 2rem;
-            font-weight: 900;
-            line-height: 1;
-        }
-        
-        .driver-name {
-            font-size: 0.65rem;
-            color: var(--text);
-            margin-top: 0.4rem;
-            font-weight: 600;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        
-        .driver-pool {
-            font-size: 0.55rem;
-            color: var(--text-dim);
-            margin-top: 0.3rem;
-        }
-        
-        /* ── Right Column ────────────────────────── */
-        
-        .right-column {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-        
-        /* ── Bet Panel ───────────────────────────── */
-        
-        .bet-panel {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 1.5rem;
-        }
-        
-        .bet-panel h2 {
-            font-size: 0.7rem;
-            color: var(--text-dim);
-            text-transform: uppercase;
-            letter-spacing: 0.2em;
-            margin-bottom: 1rem;
-        }
-        
-        .bet-input-group { margin-bottom: 0.8rem; }
-        
-        .bet-input-group label {
-            display: block;
-            font-size: 0.65rem;
-            color: var(--text-dim);
-            margin-bottom: 0.4rem;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-        }
-        
-        .bet-input {
-            width: 100%;
-            background: var(--surface2);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 0.7rem;
-            color: var(--text);
-            font-family: inherit;
-            font-size: 0.9rem;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-        
-        .bet-input:focus { border-color: var(--primary); }
-        .bet-input::placeholder { color: var(--text-dim); }
-        
-        .bet-quick-amounts {
-            display: flex;
-            gap: 0.4rem;
-            margin-top: 0.4rem;
-        }
-        
-        .quick-amount {
-            flex: 1;
-            background: var(--surface2);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 0.35rem;
-            color: var(--text-dim);
-            font-family: inherit;
-            font-size: 0.7rem;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .quick-amount:hover {
-            border-color: var(--primary);
-            color: var(--primary);
-        }
-        
-        .bet-btn {
-            width: 100%;
-            background: linear-gradient(135deg, var(--primary), var(--primary-dim));
-            color: var(--bg);
-            border: none;
-            padding: 0.85rem;
-            border-radius: 10px;
-            font-family: inherit;
-            font-size: 0.9rem;
-            font-weight: 800;
-            cursor: pointer;
-            transition: all 0.2s;
-            margin-top: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        
-        .bet-btn:hover {
-            box-shadow: var(--glow);
-            transform: translateY(-1px);
-        }
-        
-        .bet-btn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-        
-        .bet-info {
-            font-size: 0.6rem;
-            color: var(--text-dim);
-            text-align: center;
-            margin-top: 0.6rem;
-        }
-        
-        /* ── Race History ────────────────────────── */
-        
-        .history-section { margin-top: 0.5rem; }
-        
-        .history-section h3 {
-            font-size: 0.65rem;
-            color: var(--text-dim);
-            text-transform: uppercase;
-            letter-spacing: 0.2em;
-            margin-bottom: 0.75rem;
-        }
-        
-        .history-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.6rem 0.8rem;
-            background: var(--surface2);
-            border-radius: 8px;
-            margin-bottom: 0.4rem;
-            font-size: 0.75rem;
-        }
-        
-        .history-row .race-num { color: var(--text-dim); width: 50px; }
-        .history-row .winner-name { color: var(--gold); flex: 1; }
-        .history-row .pool-amount { color: var(--accent); text-align: right; }
-        
-        /* ── Provably Fair ───────────────────────── */
-        
-        .fair-section {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 1.2rem;
-        }
-        
-        .fair-section h3 {
-            font-size: 0.65rem;
-            color: var(--text-dim);
-            text-transform: uppercase;
-            letter-spacing: 0.15em;
-            margin-bottom: 0.8rem;
-        }
-        
-        .fair-detail {
-            font-size: 0.6rem;
-            color: var(--text-dim);
-            margin-bottom: 0.4rem;
-            word-break: break-all;
-            line-height: 1.4;
-        }
-        
-        .fair-detail .hash {
-            color: var(--accent);
-            font-family: monospace;
-        }
-        
-        .verify-btn {
-            background: transparent;
-            border: 1px solid var(--border);
-            color: var(--text-dim);
-            padding: 0.4rem 0.8rem;
-            border-radius: 6px;
-            font-family: inherit;
-            font-size: 0.65rem;
-            cursor: pointer;
-            margin-top: 0.4rem;
-            transition: all 0.2s;
-        }
-        
-        .verify-btn:hover {
-            border-color: var(--primary);
-            color: var(--primary);
-        }
-        
-        /* ── $DRIFT Token Banner ────────────────── */
-        
-        .token-banner {
-            background: linear-gradient(135deg, var(--surface) 0%, rgba(0, 255, 136, 0.05) 100%);
-            border: 1px solid rgba(0, 255, 136, 0.2);
-            border-radius: 16px;
-            padding: 1.2rem;
-            text-align: center;
-        }
-        
-        .token-banner .token-name {
-            font-size: 1.2rem;
-            font-weight: 900;
-            background: linear-gradient(135deg, var(--primary), var(--gold));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        
-        .token-banner .token-desc {
-            font-size: 0.6rem;
-            color: var(--text-dim);
-            margin-top: 0.3rem;
-        }
-        
-        .token-features {
-            display: flex;
-            gap: 0.5rem;
-            margin-top: 0.6rem;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        
-        .token-feature {
-            background: var(--surface2);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 0.3rem 0.5rem;
-            font-size: 0.55rem;
-            color: var(--text-dim);
-        }
-        
-        /* ── Footer ──────────────────────────────── */
-        
-        footer {
-            text-align: center;
-            padding: 2rem;
-            color: var(--text-dim);
-            font-size: 0.6rem;
-            border-top: 1px solid var(--border);
-            margin-top: 1rem;
-        }
-        
-        footer a {
-            color: var(--primary);
-            text-decoration: none;
-        }
-        
-        footer a:hover { text-decoration: underline; }
-        
-        /* ── Responsive ──────────────────────────── */
-        
-        @media (max-width: 900px) {
-            main {
-                grid-template-columns: 1fr;
-                padding: 0 1rem 2rem;
-            }
-            .header-center { display: none; }
-            .drivers-grid { grid-template-columns: repeat(2, 1fr); }
-            .timer-value { font-size: 2.5rem; }
-            header { padding: 0.8rem 1rem; }
-        }
-        
-        /* ── Animations ──────────────────────────── */
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        /* ── Winner Overlay ──────────────────────── */
-        
-        .winner-overlay {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.92);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        
-        .winner-overlay.active { display: flex; }
-        
-        .winner-content {
-            text-align: center;
-            animation: fadeIn 0.5s ease;
-        }
-        
-        .winner-content .trophy { font-size: 5rem; margin-bottom: 1rem; }
-        .winner-content h2 { font-size: 2rem; color: var(--gold); margin-bottom: 0.5rem; }
-        .winner-content .driver { font-size: 1.3rem; color: var(--text); margin-bottom: 0.5rem; }
-        .winner-content .pool { font-size: 0.9rem; color: var(--accent); margin-bottom: 1.5rem; }
-        
-        .winner-content .dismiss {
-            background: var(--primary);
-            color: var(--bg);
-            border: none;
-            padding: 0.7rem 2rem;
-            border-radius: 8px;
-            font-family: inherit;
-            font-weight: 700;
-            cursor: pointer;
-            font-size: 0.85rem;
-        }
+            --bg:#08080c; --surface:#101018; --surface2:#181824; --border:#252535;
+            --primary:#00ff88; --secondary:#ff3366; --accent:#00aaff; --gold:#ffd700;
+            --text:#d0d0e0; --dim:#666880; --glow:0 0 20px rgba(0,255,136,.25);
+        }
+        body { background:var(--bg); color:var(--text); font-family:'JetBrains Mono','SF Mono','Fira Code',monospace; overflow-x:hidden; }
+
+        /* ── Scanlines overlay ─────────────── */
+        body::after {
+            content:''; position:fixed; top:0; left:0; right:0; bottom:0;
+            background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.03) 2px,rgba(0,0,0,.03) 4px);
+            pointer-events:none; z-index:9999;
+        }
+
+        /* ── Header ────────────────────────── */
+        .header { background:var(--surface); border-bottom:1px solid var(--border); padding:.6rem 1.5rem; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:100; }
+        .logo { display:flex; align-items:center; gap:.6rem; }
+        .logo h1 { font-size:1.4rem; font-weight:900; background:linear-gradient(135deg,var(--primary),var(--accent)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:-.05em; }
+        .logo small { font-size:.5rem; color:var(--dim); letter-spacing:.2em; text-transform:uppercase; }
+        .chain-badge { background:var(--surface2); border:1px solid var(--border); padding:.25rem .6rem; border-radius:12px; font-size:.6rem; color:var(--dim); display:flex; align-items:center; gap:5px; }
+        .chain-badge .dot { width:5px; height:5px; background:var(--primary); border-radius:50%; animation:pulse 2s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.3} }
+        .wallet-btn { background:linear-gradient(135deg,var(--primary),#00cc6a); color:var(--bg); border:none; padding:.45rem 1rem; border-radius:6px; font-family:inherit; font-weight:700; font-size:.7rem; cursor:pointer; transition:all .2s; }
+        .wallet-btn:hover { box-shadow:var(--glow); }
+        .wallet-btn.connected { background:var(--surface2); color:var(--primary); border:1px solid rgba(0,255,136,.3); }
+
+        /* ── Main Layout ───────────────────── */
+        .main { display:grid; grid-template-columns:200px 1fr 280px; gap:0; min-height:calc(100vh - 42px); }
+
+        /* ── Left: Agent Station ────────────── */
+        .agent-station { background:var(--surface); border-right:1px solid var(--border); padding:1rem; display:flex; flex-direction:column; align-items:center; position:relative; }
+        .station-label { font-size:.5rem; color:var(--dim); text-transform:uppercase; letter-spacing:.2em; margin-bottom:.8rem; }
+        .agent-container { position:relative; width:120px; height:160px; margin-bottom:1rem; }
+        
+        /* Chat bubble */
+        .chat-bubble { position:absolute; top:-8px; left:50%; transform:translateX(-50%); background:var(--surface2); border:1px solid var(--border); border-radius:10px 10px 10px 2px; padding:.4rem .6rem; max-width:130px; font-size:.55rem; color:var(--text); text-align:center; animation:bubbleIn .3s ease; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .chat-bubble::after { content:''; position:absolute; bottom:-6px; left:10px; border-width:6px 4px 0; border-style:solid; border-color:var(--surface2) transparent transparent; }
+        @keyframes bubbleIn { from{opacity:0;transform:translateX(-50%) translateY(5px)}to{opacity:1;transform:translateX(-50%) translateY(0)} }
+        
+        /* Payment terminal */
+        .payment-terminal { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:.6rem; margin-top:auto; }
+        .terminal-header { font-size:.5rem; color:var(--primary); text-transform:uppercase; letter-spacing:.15em; margin-bottom:.4rem; text-align:center; }
+        .terminal-row { display:flex; justify-content:space-between; font-size:.55rem; margin-bottom:.2rem; }
+        .terminal-row .label { color:var(--dim); }
+        .terminal-row .value { color:var(--accent); }
+        .terminal-input { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:4px; padding:.3rem .4rem; color:var(--text); font-family:inherit; font-size:.6rem; outline:none; margin-top:.3rem; }
+        .terminal-input:focus { border-color:var(--primary); }
+        .terminal-btn { width:100%; background:var(--primary); color:var(--bg); border:none; padding:.35rem; border-radius:4px; font-family:inherit; font-size:.6rem; font-weight:700; cursor:pointer; margin-top:.3rem; transition:all .2s; }
+        .terminal-btn:hover { box-shadow:var(--glow); }
+        .terminal-btn:disabled { opacity:.3; cursor:not-allowed; }
+        .quick-btns { display:flex; gap:.2rem; margin-top:.3rem; }
+        .quick-btn { flex:1; background:var(--bg); border:1px solid var(--border); border-radius:3px; padding:.2rem; color:var(--dim); font-family:inherit; font-size:.5rem; cursor:pointer; transition:all .15s; }
+        .quick-btn:hover { border-color:var(--primary); color:var(--primary); }
+        .selected-info { font-size:.5rem; color:var(--gold); text-align:center; margin-top:.3rem; }
+
+        /* ── Center: Race Track ─────────────── */
+        .track-area { display:flex; flex-direction:column; overflow:hidden; }
+        
+        /* Race status bar */
+        .race-bar { background:var(--surface); border-bottom:1px solid var(--border); padding:.5rem 1rem; display:flex; justify-content:space-between; align-items:center; }
+        .race-id { font-size:.8rem; font-weight:700; }
+        .race-status { padding:.2rem .5rem; border-radius:10px; font-size:.55rem; font-weight:700; text-transform:uppercase; }
+        .status-betting { background:rgba(0,255,136,.12); color:var(--primary); border:1px solid rgba(0,255,136,.25); animation:pulse 1.5s infinite; }
+        .status-running { background:rgba(255,215,0,.12); color:var(--gold); border:1px solid rgba(255,215,0,.25); }
+        .status-settled { background:rgba(102,104,128,.1); color:var(--dim); border:1px solid var(--border); }
+        .timer { font-size:1.5rem; font-weight:900; color:var(--primary); font-variant-numeric:tabular-nums; text-shadow:0 0 20px rgba(0,255,136,.3); }
+        .timer.warn { color:var(--secondary); animation:timerPulse .5s infinite; }
+        .timer.done { color:var(--gold); }
+        @keyframes timerPulse { 0%,100%{transform:scale(1)}50%{transform:scale(1.08)} }
+
+        /* Pool stats */
+        .pool-bar { background:var(--surface); border-bottom:1px solid var(--border); padding:.4rem 1rem; display:flex; justify-content:space-around; font-size:.6rem; }
+        .pool-bar .stat-val { color:var(--accent); font-weight:700; }
+        .pool-bar .stat-lbl { color:var(--dim); font-size:.5rem; margin-left:.3rem; }
+
+        /* SVG Track */
+        .track-container { flex:1; position:relative; background:var(--bg); overflow:hidden; }
+        .track-svg { width:100%; height:100%; }
+
+        /* ── Right: Terminal Log ────────────── */
+        .log-panel { background:var(--surface); border-left:1px solid var(--border); display:flex; flex-direction:column; }
+        .log-header { padding:.5rem .8rem; border-bottom:1px solid var(--border); font-size:.55rem; color:var(--dim); text-transform:uppercase; letter-spacing:.15em; display:flex; justify-content:space-between; }
+        .log-body { flex:1; overflow-y:auto; padding:.4rem .6rem; font-size:.55rem; }
+        .log-entry { padding:.2rem 0; border-bottom:1px solid rgba(37,37,53,.5); line-height:1.4; display:flex; gap:.4rem; }
+        .log-time { color:var(--dim); white-space:nowrap; flex-shrink:0; }
+        .log-msg { color:var(--text); }
+        .log-msg.system { color:var(--accent); }
+        .log-msg.win { color:var(--gold); }
+        .log-msg.bet { color:var(--primary); }
+        .log-msg.agent { color:var(--secondary); }
+        
+        /* Driver selector in log */
+        .driver-select { padding:.6rem; }
+        .driver-select h3 { font-size:.55rem; color:var(--dim); text-transform:uppercase; letter-spacing:.15em; margin-bottom:.4rem; }
+        .driver-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:.3rem; }
+        .driver-chip { background:var(--surface2); border:1px solid var(--border); border-radius:6px; padding:.3rem .2rem; text-align:center; cursor:pointer; transition:all .15s; font-size:.5rem; }
+        .driver-chip:hover { border-color:var(--primary); transform:translateY(-1px); }
+        .driver-chip.selected { border-color:var(--primary); background:rgba(0,255,136,.08); }
+        .driver-chip.winner { border-color:var(--gold); background:rgba(255,215,0,.08); box-shadow:0 0 10px rgba(255,215,0,.15); }
+        .driver-chip .car-color { width:14px; height:8px; border-radius:2px; margin:0 auto .15rem; }
+        .driver-chip .dname { font-size:.4rem; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+        /* ── Winner overlay ─────────────────── */
+        .winner-overlay { position:fixed; inset:0; background:rgba(0,0,0,.9); display:none; justify-content:center; align-items:center; z-index:1000; }
+        .winner-overlay.active { display:flex; }
+        .winner-box { text-align:center; animation:bubbleIn .4s ease; }
+        .winner-box .trophy { font-size:4rem; }
+        .winner-box h2 { font-size:1.8rem; color:var(--gold); margin:.5rem 0 .3rem; }
+        .winner-box .wdriver { font-size:1rem; color:var(--text); margin-bottom:.5rem; }
+        .winner-box .wpool { font-size:.8rem; color:var(--accent); margin-bottom:1.5rem; }
+        .winner-box button { background:var(--primary); color:var(--bg); border:none; padding:.6rem 1.5rem; border-radius:6px; font-family:inherit; font-weight:700; cursor:pointer; }
+
+        /* ── Fairness bar ──────────────────── */
+        .fair-bar { background:var(--surface); border-top:1px solid var(--border); padding:.4rem .8rem; display:flex; gap:1rem; font-size:.45rem; color:var(--dim); align-items:center; }
+        .fair-bar .hash { color:var(--accent); font-family:monospace; }
+
+        /* ── Responsive ────────────────────── */
+        @media(max-width:900px) {
+            .main { grid-template-columns:1fr; }
+            .agent-station { flex-direction:row; padding:.5rem; gap:.5rem; border-right:none; border-bottom:1px solid var(--border); }
+            .agent-container { width:60px; height:80px; margin:0; }
+            .chat-bubble { max-width:100px; font-size:.45rem; }
+            .payment-terminal { margin:0; }
+            .log-panel { max-height:200px; }
+        }
+
+        @keyframes fadeIn { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
     </style>
 </head>
 <body>
-    <header>
-        <div class="logo">
-            <span class="logo-icon">🏎️</span>
-            <div class="logo-text">
-                <h1>DRIFT</h1>
-                <div class="tagline">driftrace.tech</div>
-            </div>
-        </div>
-        <div class="header-center">
-            <div class="chain-badge">
-                <span class="dot"></span>
-                Robinhood Chain Testnet
-            </div>
-            <div class="stats-badge" id="totalRaces">0 races</div>
-        </div>
-        <button class="wallet-btn" id="walletBtn">Connect Wallet</button>
-    </header>
 
-    <div class="hero">
-        <h2>Every <span>5 minutes</span> — a new race.</h2>
-        <p>Pick a driver. Place your bet. Watch the AI decide the winner. Provably fair, instant payouts.</p>
+<!-- ── Header ────────────────────────────── -->
+<div class="header">
+    <div class="logo">
+        <div>
+            <h1>DRIFT</h1>
+            <small>driftrace.tech</small>
+        </div>
     </div>
+    <div style="display:flex;gap:.5rem;align-items:center;">
+        <div class="chain-badge"><span class="dot"></span>Robinhood Chain</div>
+        <button class="wallet-btn" id="walletBtn">CONNECT</button>
+    </div>
+</div>
 
-    <main>
-        <div class="left-column">
-            <div class="race-card" id="raceCard">
-                <div class="race-header">
-                    <div class="race-id" id="raceId">Race #—</div>
-                    <div class="race-status status-betting" id="raceStatus">Connecting...</div>
-                </div>
-
-                <div class="timer-section">
-                    <div class="timer-label" id="timerLabel">Initializing</div>
-                    <div class="timer-value" id="timerValue">--:--</div>
-                </div>
-
-                <div class="pool-section">
-                    <div class="pool-stat">
-                        <div class="value" id="poolTotal">0.00</div>
-                        <div class="label">Total Pool</div>
-                    </div>
-                    <div class="pool-stat">
-                        <div class="value" id="betCount">0</div>
-                        <div class="label">Bets</div>
-                    </div>
-                    <div class="pool-stat">
-                        <div class="value">5%</div>
-                        <div class="label">Fee</div>
-                    </div>
-                </div>
-
-                <div class="drivers-section">
-                    <h3>Choose Your Driver</h3>
-                    <div class="drivers-grid" id="driversGrid"></div>
-                </div>
-            </div>
-
-            <div class="history-section">
-                <h3>Recent Races</h3>
-                <div id="historyList">
-                    <div class="history-row">
-                        <span class="race-num">—</span>
-                        <span class="winner-name">Waiting for first race...</span>
-                        <span class="pool-amount"></span>
-                    </div>
-                </div>
-            </div>
+<!-- ── Main Layout ───────────────────────── -->
+<div class="main">
+    
+    <!-- LEFT: Agent Station -->
+    <div class="agent-station">
+        <div class="station-label">Agent Station</div>
+        
+        <div class="agent-container">
+            <div class="chat-bubble" id="chatBubble">Ready to race...</div>
+            <!-- SVG Agent -->
+            <svg viewBox="0 0 120 160" width="120" height="160" id="agentSvg">
+                <!-- Body -->
+                <rect x="30" y="55" width="60" height="70" rx="8" fill="#1a1a2e" stroke="#00ff88" stroke-width="1.5"/>
+                <!-- Chest panel -->
+                <rect x="40" y="65" width="40" height="25" rx="4" fill="#0d0d1a" stroke="#333" stroke-width=".5"/>
+                <circle cx="50" cy="77" r="3" fill="#00ff88" opacity=".8"><animate attributeName="opacity" values=".8;.3;.8" dur="2s" repeatCount="indefinite"/></circle>
+                <circle cx="60" cy="77" r="3" fill="#00aaff" opacity=".6"><animate attributeName="opacity" values=".6;.2;.6" dur="1.5s" repeatCount="indefinite"/></circle>
+                <circle cx="70" cy="77" r="3" fill="#ff3366" opacity=".5"><animate attributeName="opacity" values=".5;.1;.5" dur="1.8s" repeatCount="indefinite"/></circle>
+                <!-- Screen text -->
+                <text x="60" y="100" text-anchor="middle" font-size="6" fill="#00ff88" font-family="monospace">DRIFT</text>
+                <text x="60" y="110" text-anchor="middle" font-size="4" fill="#666" font-family="monospace" id="agentStatus">STANDBY</text>
+                <!-- Head -->
+                <rect x="35" y="20" width="50" height="35" rx="10" fill="#1a1a2e" stroke="#00ff88" stroke-width="1.5"/>
+                <!-- Visor -->
+                <rect x="42" y="28" width="36" height="14" rx="7" fill="#0d0d1a"/>
+                <!-- Eyes -->
+                <circle cx="52" cy="35" r="4" fill="#00ff88"><animate attributeName="r" values="4;1;4" dur="3s" repeatCount="indefinite"/></circle>
+                <circle cx="68" cy="35" r="4" fill="#00ff88"><animate attributeName="r" values="4;1;4" dur="3s" repeatCount="indefinite"/></circle>
+                <circle cx="53" cy="34" r="1.5" fill="#fff"/>
+                <circle cx="69" cy="34" r="1.5" fill="#fff"/>
+                <!-- Antenna -->
+                <line x1="60" y1="20" x2="60" y2="10" stroke="#00ff88" stroke-width="1.5"/>
+                <circle cx="60" cy="8" r="3" fill="#00ff88"><animate attributeName="r" values="3;4;3" dur="1s" repeatCount="indefinite"/></circle>
+                <!-- Arms -->
+                <rect x="15" y="60" width="12" height="40" rx="6" fill="#1a1a2e" stroke="#333" stroke-width="1"/>
+                <rect x="93" y="60" width="12" height="40" rx="6" fill="#1a1a2e" stroke="#333" stroke-width="1"/>
+                <!-- Legs -->
+                <rect x="38" y="125" width="16" height="25" rx="4" fill="#1a1a2e" stroke="#333" stroke-width="1"/>
+                <rect x="66" y="125" width="16" height="25" rx="4" fill="#1a1a2e" stroke="#333" stroke-width="1"/>
+                <!-- Feet -->
+                <rect x="34" y="145" width="24" height="8" rx="3" fill="#222" stroke="#444" stroke-width=".5"/>
+                <rect x="62" y="145" width="24" height="8" rx="3" fill="#222" stroke="#444" stroke-width=".5"/>
+            </svg>
         </div>
 
-        <div class="right-column">
-            <div class="bet-panel">
-                <h2>⚡ Place Bet</h2>
-                
-                <div class="bet-input-group">
-                    <label>Selected Driver</label>
-                    <input type="text" class="bet-input" id="selectedDriver" readonly placeholder="← Click a driver">
-                </div>
-
-                <div class="bet-input-group">
-                    <label>Amount (ETH)</label>
-                    <input type="number" class="bet-input" id="betAmount" min="0.001" max="1.0" step="0.001" placeholder="0.01">
-                    <div class="bet-quick-amounts">
-                        <button class="quick-amount" data-amount="0.01">$5</button>
-                        <button class="quick-amount" data-amount="0.05">$25</button>
-                        <button class="quick-amount" data-amount="0.1">$50</button>
-                        <button class="quick-amount" data-amount="0.5">$250</button>
-                    </div>
-                </div>
-
-                <button class="bet-btn" id="betBtn" disabled>CONNECT WALLET</button>
-                
-                <div class="bet-info">
-                    Min 0.001 ETH · Max 1.0 ETH · 5% protocol fee
-                </div>
+        <!-- Payment Terminal -->
+        <div class="payment-terminal">
+            <div class="terminal-header">⚡ Bet Terminal</div>
+            <div class="terminal-row"><span class="label">Pool</span><span class="value" id="poolVal">0.00 ETH</span></div>
+            <div class="terminal-row"><span class="label">Bets</span><span class="value" id="betCount">0</span></div>
+            <div class="terminal-row"><span class="label">Fee</span><span class="value">5%</span></div>
+            <div class="selected-info" id="selectedInfo">No driver selected</div>
+            <select class="terminal-input" id="driverSelect">
+                <option value="">-- Select Driver --</option>
+            </select>
+            <input type="number" class="terminal-input" id="betInput" placeholder="ETH amount" min="0.001" step="0.001">
+            <div class="quick-btns">
+                <button class="quick-btn" onclick="setBet(0.01)">$5</button>
+                <button class="quick-btn" onclick="setBet(0.05)">$25</button>
+                <button class="quick-btn" onclick="setBet(0.1)">$50</button>
+                <button class="quick-btn" onclick="setBet(0.5)">$250</button>
             </div>
-
-            <div class="fair-section">
-                <h3>🔒 Provably Fair</h3>
-                <div class="fair-detail">Commit: <span class="hash" id="commitHash">—</span></div>
-                <div class="fair-detail">Seed: <span class="hash" id="seedReveal">hidden</span></div>
-                <div class="fair-detail">Winner: <span class="hash" id="winnerIndex">—</span></div>
-                <button class="verify-btn" onclick="verifyFair()">How to verify →</button>
-            </div>
-
-            <div class="token-banner">
-                <div class="token-name">$DRIFT</div>
-                <div class="token-desc">Governance · Staking · Fee Discounts</div>
-                <div class="token-features">
-                    <span class="token-feature">🗳 Governance</span>
-                    <span class="token-feature">💰 3% Fee</span>
-                    <span class="token-feature">🏎️ NFT Cars</span>
-                    <span class="token-feature">📈 Staking</span>
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <!-- Winner Overlay -->
-    <div class="winner-overlay" id="winnerOverlay">
-        <div class="winner-content">
-            <div class="trophy">🏆</div>
-            <h2>WINNER!</h2>
-            <div class="driver" id="winnerName">Driver #0</div>
-            <div class="pool" id="winnerPool">Pool: 0.00 ETH</div>
-            <button class="dismiss" onclick="dismissWinner()">Continue</button>
+            <button class="terminal-btn" id="betBtn" disabled onclick="placeBet()">CONNECT WALLET</button>
         </div>
     </div>
 
-    <footer>
-        🏎️ DRIFT — First AI Agent Business on <a href="https://robinhood.com/us/en/chain/" target="_blank">Robinhood Chain</a>
-        &nbsp;·&nbsp; Provably fair racing
-        &nbsp;·&nbsp; <a href="https://driftrace.tech" target="_blank">driftrace.tech</a>
-        &nbsp;·&nbsp; Powered by <a href="https://pons.fun" target="_blank">PONS</a>
-    </footer>
+    <!-- CENTER: Race Track -->
+    <div class="track-area">
+        <div class="race-bar">
+            <span class="race-id" id="raceId">Race #—</span>
+            <span class="race-status status-settled" id="raceStatus">Connecting...</span>
+            <span class="timer" id="timer">--:--</span>
+        </div>
+        <div class="pool-bar">
+            <div><span class="stat-val" id="poolTotal">0.00</span><span class="stat-lbl">Pool</span></div>
+            <div><span class="stat-val" id="totalBets">0</span><span class="stat-lbl">Bets</span></div>
+            <div><span class="stat-val" id="totalRaces">0</span><span class="stat-lbl">Races</span></div>
+        </div>
+        
+        <!-- SVG Race Track -->
+        <div class="track-container">
+            <svg class="track-svg" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid meet" id="trackSvg">
+                <!-- Track background -->
+                <rect width="800" height="500" fill="#0a0a12"/>
+                
+                <!-- Track surface -->
+                <rect x="50" y="20" width="720" height="460" rx="8" fill="#12121c" stroke="#252535" stroke-width="1"/>
+                
+                <!-- Lane lines -->
+                <g id="laneLines" stroke="#1a1a2a" stroke-width=".5" stroke-dasharray="8,4">
+                </g>
+                
+                <!-- Starting line -->
+                <line x1="120" y1="20" x2="120" y2="480" stroke="#333" stroke-width="2" stroke-dasharray="4,4"/>
+                <text x="120" y="15" text-anchor="middle" font-size="6" fill="#555" font-family="monospace">START</text>
+                
+                <!-- Finish line -->
+                <g id="finishLine">
+                    <rect x="680" y="20" width="12" height="460" fill="url(#checkerPattern)"/>
+                </g>
+                <defs>
+                    <pattern id="checkerPattern" width="12" height="12" patternUnits="userSpaceOnUse">
+                        <rect width="6" height="6" fill="#fff" opacity=".15"/>
+                        <rect x="6" y="6" width="6" height="6" fill="#fff" opacity=".15"/>
+                    </pattern>
+                </defs>
+                
+                <!-- Cars will be rendered here -->
+                <g id="carsGroup"></g>
+                
+                <!-- Lane labels -->
+                <g id="laneLabels"></g>
+            </svg>
+        </div>
+        
+        <!-- Provably Fair Bar -->
+        <div class="fair-bar">
+            <span>🔒 Provably Fair</span>
+            <span>Commit: <span class="hash" id="commitHash">—</span></span>
+            <span>Seed: <span class="hash" id="seedReveal">hidden</span></span>
+            <span>Winner: <span class="hash" id="winnerIdx">—</span></span>
+        </div>
+    </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
-    <script>
-        // ── Config ───────────────────────────────────────
+    <!-- RIGHT: Terminal Log + Drivers -->
+    <div class="log-panel">
+        <div class="log-header">
+            <span>Terminal Output</span>
+            <span id="logCount">0 lines</span>
+        </div>
+        <div class="log-body" id="logBody">
+            <div class="log-entry"><span class="log-time">--:--</span><span class="log-msg system">DRIFT Racing System v1.0</span></div>
+            <div class="log-entry"><span class="log-time">--:--</span><span class="log-msg system">Initializing agent...</span></div>
+        </div>
         
-        const SITE_URL = 'https://driftrace.tech';
-        const CONTRACT_ADDRESS = localStorage.getItem('DRIFT_CONTRACT_ADDRESS') || '0x796c16af215C6f4c34d39cea9279c0aC79DF609e';
+        <!-- Driver selector -->
+        <div class="driver-select">
+            <h3>🏁 Drivers</h3>
+            <div class="driver-grid" id="driverGrid"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Winner Overlay -->
+<div class="winner-overlay" id="winnerOverlay">
+    <div class="winner-box">
+        <div class="trophy">🏆</div>
+        <h2>WINNER!</h2>
+        <div class="wdriver" id="winnerName">#0 Driver</div>
+        <div class="wpool" id="winnerPool">Pool: 0.00 ETH</div>
+        <button onclick="document.getElementById('winnerOverlay').classList.remove('active')">Continue</button>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+<script>
+// ── Config ───────────────────────────────
+const CONTRACT = '0x796c16af215C6f4c34d39cea9279c0aC79DF609e';
+const CHAIN = { chainId:'0xB626', chainName:'Robinhood Chain Testnet', nativeCurrency:{name:'ETH',symbol:'ETH',decimals:18}, rpcUrls:['https://robinhood-testnet.g.alchemy.com/v2/AUGVJZWHgMFRdBn7xeexx'], blockExplorerUrls:['https://explorer.testnet.chain.robinhood.com'] };
+
+const DRIVERS = [
+    { id:0, name:'Viper',     color:'#ff3333', car:'🏎️' },
+    { id:1, name:'Phantom',   color:'#00ff88', car:'🏎️' },
+    { id:2, name:'Blaze',     color:'#ff9933', car:'🏎️' },
+    { id:3, name:'Neon',      color:'#ff33ff', car:'🏎️' },
+    { id:4, name:'Storm',     color:'#3399ff', car:'🏎️' },
+    { id:5, name:'Shadow',    color:'#9933ff', car:'🏎️' },
+    { id:6, name:'Titan',     color:'#33ffcc', car:'🏎️' },
+    { id:7, name:'Raptor',    color:'#ffcc00', car:'🏎️' },
+    { id:8, name:'Surge',     color:'#ff6666', car:'🏎️' },
+    { id:9, name:'Frost',     color:'#66ccff', car:'🏎️' }
+];
+
+const ABI = [
+    "function currentRaceId() external view returns (uint256)",
+    "function getRace(uint256 raceId) external view returns (uint256 id, uint256 startTime, uint256 bettingEnd, uint256 resultTime, bytes32 commitHash, bytes32 seedReveal, bool committed, bool revealed, bool settled, uint8 winner, uint256 totalPool, uint256 protocolFee)",
+    "function getBetCount(uint256 raceId) external view returns (uint256)",
+    "function isBettingOpen(uint256 raceId) external view returns (bool)",
+    "function timeUntilBettingEnds(uint256 raceId) external view returns (uint256)",
+    "function placeBet(uint256 raceId, uint8 driver) external payable",
+    "function claimPrize(uint256 raceId) external"
+];
+
+// Agent chat messages
+const AGENT_CHAT = [
+    "Place your bets...",
+    "Race starts soon!",
+    "3... 2... 1...",
+    "And they're off!",
+    "Who will win?",
+    "I feel lucky today.",
+    "The track is ready.",
+    "No favorites here...",
+    "May the best car win!",
+    "Provably fair. Always.",
+    "5% fee. That's the price.",
+    "Speed kills. Place bets.",
+    "New race loading...",
+    "DRIFT never sleeps.",
+    "Lining them up...",
+    "Bets are locked in!",
+    "Revealing result...",
+    "Winner coming up!",
+    "Another race done.",
+    "Who's next?"
+];
+
+// ── State ────────────────────────────────
+let provider, signer, contract, userAddress;
+let currentRaceId = 0, selectedDriver = null, lastWinner = null, lineCount = 3;
+let carPositions = new Array(10).fill(120); // Starting line position
+
+// ── Init ─────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    renderDrivers();
+    renderTrack();
+    connectContract();
+    startPolling();
+    setInterval(changeAgentChat, 4000);
+});
+
+function renderDrivers() {
+    const grid = document.getElementById('driverGrid');
+    const sel = document.getElementById('driverSelect');
+    grid.innerHTML = DRIVERS.map(d => `
+        <div class="driver-chip" data-id="${d.id}" onclick="selectDriver(${d.id})">
+            <div class="car-color" style="background:${d.color}"></div>
+            <div>${d.name}</div>
+        </div>
+    `).join('');
+    sel.innerHTML = '<option value="">-- Select Driver --</option>' +
+        DRIVERS.map(d => `<option value="${d.id}">#${d.id} ${d.name}</option>`).join('');
+    sel.onchange = () => { if(sel.value!=='') selectDriver(parseInt(sel.value)); };
+}
+
+function renderTrack() {
+    const cars = document.getElementById('carsGroup');
+    const labels = document.getElementById('laneLabels');
+    const lines = document.getElementById('laneLines');
+    const laneH = 440 / 10;
+    
+    let linesHtml = '', labelsHtml = '';
+    for(let i = 0; i < 10; i++) {
+        const y = 30 + i * laneH;
+        linesHtml += `<line x1="50" y1="${y}" x2="770" y2="${y}"/>`;
+        labelsHtml += `<text x="60" y="${y + laneH/2 + 2}" font-size="5" fill="#444" font-family="monospace">#${i}</text>`;
+    }
+    lines.innerHTML = linesHtml;
+    labels.innerHTML = labelsHtml;
+    
+    let carsHtml = '';
+    for(let i = 0; i < 10; i++) {
+        const y = 30 + i * laneH + laneH/2 - 10;
+        const d = DRIVERS[i];
+        carsHtml += `
+            <g id="car${i}" transform="translate(120,${y})">
+                <!-- Car body -->
+                <rect x="0" y="2" width="30" height="14" rx="3" fill="${d.color}" opacity=".9"/>
+                <rect x="2" y="5" width="8" height="8" rx="2" fill="rgba(0,0,0,.3)"/>
+                <!-- Windshield -->
+                <rect x="22" y="4" width="6" height="10" rx="2" fill="rgba(255,255,255,.15)"/>
+                <!-- Wheels -->
+                <circle cx="8" cy="18" r="3" fill="#222" stroke="#444" stroke-width=".5"/>
+                <circle cx="24" cy="18" r="3" fill="#222" stroke="#444" stroke-width=".5"/>
+                <!-- Speed lines (hidden by default) -->
+                <g id="speed${i}" opacity="0">
+                    <line x1="-8" y1="6" x2="-20" y2="6" stroke="${d.color}" stroke-width="1" opacity=".5"/>
+                    <line x1="-5" y1="10" x2="-15" y2="10" stroke="${d.color}" stroke-width=".8" opacity=".3"/>
+                    <line x1="-8" y1="14" x2="-22" y2="14" stroke="${d.color}" stroke-width="1" opacity=".4"/>
+                </g>
+            </g>
+        `;
+    }
+    cars.innerHTML = carsHtml;
+}
+
+function selectDriver(id) {
+    selectedDriver = id;
+    document.querySelectorAll('.driver-chip').forEach(c => {
+        c.classList.toggle('selected', parseInt(c.dataset.id) === id);
+    });
+    document.getElementById('driverSelect').value = id;
+    document.getElementById('selectedInfo').textContent = `Selected: #${id} ${DRIVERS[id].name}`;
+}
+
+function setBet(amt) { document.getElementById('betInput').value = amt; }
+
+// ── Agent Chat ──────────────────────────
+function changeAgentChat() {
+    const msg = AGENT_CHAT[Math.floor(Math.random() * AGENT_CHAT.length)];
+    const bubble = document.getElementById('chatBubble');
+    bubble.style.animation = 'none';
+    bubble.offsetHeight;
+    bubble.style.animation = 'bubbleIn .3s ease';
+    bubble.textContent = msg;
+}
+
+// ── Terminal Log ─────────────────────────
+function addLog(msg, type='') {
+    const body = document.getElementById('logBody');
+    const now = new Date();
+    const time = now.toTimeString().slice(0,8);
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    entry.innerHTML = `<span class="log-time">${time}</span><span class="log-msg ${type}">${msg}</span>`;
+    body.appendChild(entry);
+    body.scrollTop = body.scrollHeight;
+    lineCount++;
+    document.getElementById('logCount').textContent = `${lineCount} lines`;
+}
+
+// ── Wallet ───────────────────────────────
+async function connectWallet() {
+    if(!window.ethereum) { alert('Install MetaMask!'); return; }
+    try {
+        await window.ethereum.request({ method:'eth_requestAccounts' });
+        try { await window.ethereum.request({ method:'wallet_switchEthereumChain', params:[CHAIN] }); }
+        catch(e) { if(e.code===4902) await window.ethereum.request({ method:'wallet_addEthereumChain', params:[CHAIN] }); }
+        provider = new ethers.BrowserProvider(window.ethereum);
+        signer = await provider.getSigner();
+        userAddress = await signer.getAddress();
+        document.getElementById('walletBtn').textContent = userAddress.slice(0,6)+'...'+userAddress.slice(-4);
+        document.getElementById('walletBtn').classList.add('connected');
+        document.getElementById('betBtn').disabled = false;
+        document.getElementById('betBtn').textContent = 'PLACE BET';
+        addLog(`Wallet connected: ${userAddress.slice(0,10)}...`, 'system');
+        connectContract();
+    } catch(e) { console.error(e); }
+}
+
+async function connectContract() {
+    try {
+        const p = provider || new ethers.JsonRpcProvider(CHAIN.rpcUrls[0]);
+        const s = signer || await p.getSigner();
+        contract = new ethers.Contract(CONTRACT, ABI, s);
+        addLog('Contract connected', 'system');
+        addLog(`Address: ${CONTRACT.slice(0,14)}...`, 'system');
+    } catch(e) { console.error(e); }
+}
+
+document.getElementById('walletBtn').onclick = connectWallet;
+
+// ── Race Polling ─────────────────────────
+function startPolling() {
+    updateRace();
+    setInterval(updateRace, 2000);
+}
+
+async function updateRace() {
+    if(!contract) return;
+    try {
+        const cid = await contract.currentRaceId();
+        currentRaceId = Number(cid);
+        document.getElementById('totalRaces').textContent = currentRaceId;
         
-        const ROBINHOOD_CHAIN = {
-            chainId: '0xB626',
-            chainName: 'Robinhood Chain Testnet',
-            nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
-            rpcUrls: ['https://robinhood-testnet.g.alchemy.com/v2/AUGVJZWHgMFRdBn7xeexx'],
-            blockExplorerUrls: ['https://explorer.testnet.chain.robinhood.com']
-        };
+        if(currentRaceId === 0) {
+            document.getElementById('raceId').textContent = 'Race #—';
+            document.getElementById('raceStatus').textContent = 'Waiting...';
+            document.getElementById('raceStatus').className = 'race-status status-settled';
+            return;
+        }
         
-        const DRIVERS = [
-            { id: 0, name: 'Lightning McQueen', color: '#ff3333', emoji: '⚡' },
-            { id: 1, name: 'Drift King', color: '#33ff99', emoji: '👑' },
-            { id: 2, name: 'Phantom Racer', color: '#9933ff', emoji: '👻' },
-            { id: 3, name: 'Blaze Runner', color: '#ff9933', emoji: '🔥' },
-            { id: 4, name: 'Shadow Speed', color: '#3399ff', emoji: '🌑' },
-            { id: 5, name: 'Neon Fury', color: '#ff33ff', emoji: '💜' }
-        ];
+        const rid = currentRaceId - 1;
+        const race = await contract.getRace(rid);
+        const bets = await contract.getBetCount(rid);
+        const tl = Number(await contract.timeUntilBettingEnds(rid));
+        const pool = parseFloat(ethers.formatEther(race[10]));
+        const isOpen = race[6] && !race[8] && Date.now()/1000 <= Number(race[2]);
         
-        const ABI = [
-            "function createRace() external returns (uint256)",
-            "function commitRace(uint256 raceId, bytes32 commitHash) external",
-            "function placeBet(uint256 raceId, uint8 driver) external payable",
-            "function revealRace(uint256 raceId, bytes32 seed) external",
-            "function settleRace(uint256 raceId) external",
-            "function getRace(uint256 raceId) external view returns (uint256 id, uint256 startTime, uint256 bettingEnd, uint256 resultTime, bytes32 commitHash, bytes32 seedReveal, bool committed, bool revealed, bool settled, uint8 winner, uint256 totalPool, uint256 protocolFee)",
-            "function getBetCount(uint256 raceId) external view returns (uint256)",
-            "function isBettingOpen(uint256 raceId) external view returns (bool)",
-            "function timeUntilBettingEnds(uint256 raceId) external view returns (uint256)",
-            "function currentRaceId() external view returns (uint256)"
-        ];
+        document.getElementById('raceId').textContent = `Race #${rid}`;
+        document.getElementById('poolTotal').textContent = pool.toFixed(4);
+        document.getElementById('poolVal').textContent = pool.toFixed(4) + ' ETH';
+        document.getElementById('totalBets').textContent = bets.toString();
+        document.getElementById('betCount').textContent = bets.toString();
         
-        // ── State ─────────────────────────────────────────
+        // Timer
+        const tv = document.getElementById('timer');
+        if(tl <= 0) {
+            tv.textContent = '00:00';
+            tv.className = race[8] ? 'timer done' : 'timer';
+        } else {
+            const m = Math.floor(tl/60), s = tl%60;
+            tv.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+            tv.className = tl <= 10 ? 'timer warn' : 'timer';
+        }
         
-        let provider, signer, contract, userAddress;
-        let currentRaceId = 0;
-        let selectedDriver = null;
-        let lastRaceWinner = null;
-        let raceCount = 0;
+        // Status
+        const st = document.getElementById('raceStatus');
+        if(race[8]) { st.textContent='Settled'; st.className='race-status status-settled'; }
+        else if(race[7]) { st.textContent='Running'; st.className='race-status status-running'; }
+        else if(isOpen) { st.textContent='Betting Open'; st.className='race-status status-betting'; }
+        else { st.textContent='Pending'; st.className='race-status status-settled'; }
         
-        // ── Init ──────────────────────────────────────────
+        // Fair info
+        const zh = '0x'+'0'.repeat(64);
+        document.getElementById('commitHash').textContent = race[4]!==zh ? race[4].slice(0,16)+'...' : '—';
+        document.getElementById('seedReveal').textContent = race[5]!==zh ? race[5].slice(0,16)+'...' : 'hidden';
+        document.getElementById('winnerIdx').textContent = race[7] ? `#${race[9]} ${DRIVERS[race[9]]?.name}` : '—';
         
-        document.addEventListener('DOMContentLoaded', () => {
-            renderDrivers();
-            setupEvents();
-            if (CONTRACT_ADDRESS) connectToContract();
+        // Winner highlight
+        document.querySelectorAll('.driver-chip').forEach(c => {
+            c.classList.toggle('winner', race[7] && parseInt(c.dataset.id)===race[9]);
         });
         
-        function renderDrivers() {
-            const grid = document.getElementById('driversGrid');
-            grid.innerHTML = DRIVERS.map(d => `
-                <div class="driver-card" data-id="${d.id}" onclick="selectDriver(${d.id})">
-                    <div class="driver-number" style="color: ${d.color}">${d.emoji}</div>
-                    <div class="driver-name">${d.name}</div>
-                    <div class="driver-pool">0 ETH</div>
-                </div>
-            `).join('');
-        }
+        // Animate cars during race
+        animateCars(race);
         
-        function setupEvents() {
-            document.getElementById('walletBtn').addEventListener('click', connectWallet);
-            document.getElementById('betBtn').addEventListener('click', placeBet);
-            document.querySelectorAll('.quick-amount').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    document.getElementById('betAmount').value = btn.dataset.amount;
-                });
-            });
-        }
-        
-        // ── Wallet ────────────────────────────────────────
-        
-        async function connectWallet() {
-            if (!window.ethereum) {
-                alert('Please install MetaMask to play!');
-                return;
-            }
-            
-            try {
-                await window.ethereum.request({ method: 'eth_requestAccounts' });
-                
-                try {
-                    await window.ethereum.request({
-                        method: 'wallet_switchEthereumChain',
-                        params: [{ chainId: ROBINHOOD_CHAIN.chainId }]
-                    });
-                } catch (e) {
-                    if (e.code === 4902) {
-                        await window.ethereum.request({
-                            method: 'wallet_addEthereumChain',
-                            params: [ROBINHOOD_CHAIN]
-                        });
-                    }
-                }
-                
-                provider = new ethers.BrowserProvider(window.ethereum);
-                signer = await provider.getSigner();
-                userAddress = await signer.getAddress();
-                
-                const btn = document.getElementById('walletBtn');
-                btn.textContent = userAddress.slice(0, 6) + '...' + userAddress.slice(-4);
-                btn.classList.add('connected');
-                
-                document.getElementById('betBtn').disabled = false;
-                document.getElementById('betBtn').textContent = 'PLACE BET';
-                
-                if (!contract && CONTRACT_ADDRESS) connectToContract();
-            } catch (err) {
-                console.error('Wallet error:', err);
-            }
-        }
-        
-        // ── Contract ──────────────────────────────────────
-        
-        async function connectToContract() {
-            if (!CONTRACT_ADDRESS) {
-                console.warn('No contract address set. Deploy the contract first.');
-                return;
-            }
-            try {
-                const p = provider || new ethers.JsonRpcProvider(ROBINHOOD_CHAIN.rpcUrls[0]);
-                const s = signer || await p.getSigner();
-                contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, s);
-                console.log('✅ Contract connected:', CONTRACT_ADDRESS);
-                startPolling();
-            } catch (err) {
-                console.error('Contract connection error:', err);
-            }
-        }
-        
-        // ── Race Polling ──────────────────────────────────
-        
-        function startPolling() {
-            updateRace();
-            setInterval(updateRace, 2000);
-        }
-        
-        async function updateRace() {
-            if (!contract) return;
-            
-            try {
-                currentRaceId = await contract.currentRaceId();
-                if (currentRaceId === 0n) {
-                    document.getElementById('raceId').textContent = 'Race #—';
-                    document.getElementById('raceStatus').textContent = 'Waiting for agent...';
-                    document.getElementById('raceStatus').className = 'race-status status-settled';
-                    return;
-                }
-                
-                const raceId = Number(currentRaceId) - 1;
-                const race = await contract.getRace(raceId);
-                const betCount = await contract.getBetCount(raceId);
-                const timeLeft = Number(await contract.timeUntilBettingEnds(raceId));
-                const poolEth = parseFloat(ethers.formatEther(race[10]));
-                
-                const isOpen = race[6] && !race[8] && Date.now()/1000 <= Number(race[2]);
-                
-                // Update stats
-                raceCount = Number(currentRaceId);
-                document.getElementById('totalRaces').textContent = `${raceCount} races`;
-                document.getElementById('raceId').textContent = `Race #${raceId}`;
-                document.getElementById('poolTotal').textContent = poolEth.toFixed(4);
-                document.getElementById('betCount').textContent = betCount.toString();
-                
-                // Timer
-                updateTimer(timeLeft, race);
-                
-                // Status
-                const statusEl = document.getElementById('raceStatus');
-                if (race[8]) {
-                    statusEl.textContent = 'Settled';
-                    statusEl.className = 'race-status status-settled';
-                } else if (race[7]) {
-                    statusEl.textContent = 'Running';
-                    statusEl.className = 'race-status status-running';
-                } else if (isOpen) {
-                    statusEl.textContent = 'Betting Open';
-                    statusEl.className = 'race-status status-betting';
-                } else {
-                    statusEl.textContent = 'Pending';
-                    statusEl.className = 'race-status status-settled';
-                }
-                
-                // Provably Fair
-                const zeroHash = '0x' + '0'.repeat(64);
-                document.getElementById('commitHash').textContent = 
-                    race[4] !== zeroHash ? race[4].slice(0, 20) + '...' : '—';
-                document.getElementById('seedReveal').textContent = 
-                    race[5] !== zeroHash ? race[5].slice(0, 20) + '...' : '🔒 hidden';
-                document.getElementById('winnerIndex').textContent = 
-                    race[7] ? `#${race[9]} — ${DRIVERS[race[9]]?.name || '?'}` : '—';
-                
-                // Winner highlight
-                document.querySelectorAll('.driver-card').forEach(card => {
-                    card.classList.remove('winner');
-                    if (race[7] && parseInt(card.dataset.id) === race[9]) {
-                        card.classList.add('winner');
-                    }
-                });
-                
-                // Winner overlay
-                if (race[8] && race[7] && race[9] !== lastRaceWinner) {
-                    lastRaceWinner = race[9];
-                    showWinner(race[9], poolEth);
-                }
-                
-                // Update driver pools (if we had per-driver data)
-                
-            } catch (err) {
-                console.error('Poll error:', err);
-            }
-        }
-        
-        function updateTimer(seconds, race) {
-            const timerValue = document.getElementById('timerValue');
-            const timerLabel = document.getElementById('timerLabel');
-            
-            if (seconds <= 0) {
-                timerValue.textContent = '00:00';
-                timerValue.className = 'timer-value gold';
-                timerLabel.textContent = race[8] ? 'Race Complete' : 
-                                         race[7] ? 'Settling...' : 'Next race soon...';
-                return;
-            }
-            
-            const mins = Math.floor(seconds / 60);
-            const secs = seconds % 60;
-            timerValue.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-            
-            if (seconds <= 10) {
-                timerValue.className = 'timer-value warning';
-                timerLabel.textContent = '⚡ Closing Soon!';
-            } else {
-                timerValue.className = 'timer-value';
-                timerLabel.textContent = 'Betting Closes In';
-            }
-        }
-        
-        // ── Betting ───────────────────────────────────────
-        
-        function selectDriver(id) {
-            selectedDriver = id;
-            document.querySelectorAll('.driver-card').forEach(card => {
-                card.classList.remove('selected');
-                if (parseInt(card.dataset.id) === id) card.classList.add('selected');
-            });
-            document.getElementById('selectedDriver').value = `${DRIVERS[id].emoji} #${id} ${DRIVERS[id].name}`;
-        }
-        
-        async function placeBet() {
-            if (!contract || !signer || selectedDriver === null) {
-                alert('Connect wallet and select a driver first!');
-                return;
-            }
-            
-            const amount = document.getElementById('betAmount').value;
-            if (!amount || parseFloat(amount) <= 0) {
-                alert('Enter a bet amount!');
-                return;
-            }
-            
-            const btn = document.getElementById('betBtn');
-            btn.disabled = true;
-            btn.textContent = 'PLACING BET...';
-            
-            try {
-                const tx = await contract.placeBet(currentRaceId - 1n, selectedDriver, {
-                    value: ethers.parseEther(amount)
-                });
-                btn.textContent = 'CONFIRMING...';
-                await tx.wait();
-                btn.textContent = '✓ BET PLACED!';
-                setTimeout(() => { btn.textContent = 'PLACE BET'; btn.disabled = false; }, 3000);
-            } catch (err) {
-                console.error('Bet failed:', err);
-                btn.textContent = 'PLACE BET';
-                btn.disabled = false;
-                alert('Bet failed: ' + (err.reason || err.message || 'Unknown error'));
-            }
-        }
-        
-        // ── Winner Overlay ────────────────────────────────
-        
-        function showWinner(winnerId, pool) {
-            document.getElementById('winnerName').textContent = 
-                `${DRIVERS[winnerId]?.emoji || ''} #${winnerId} ${DRIVERS[winnerId]?.name || 'Unknown'}`;
+        // Winner overlay
+        if(race[8] && race[7] && race[9] !== lastWinner) {
+            lastWinner = race[9];
+            document.getElementById('winnerName').textContent = `#${race[9]} ${DRIVERS[race[9]]?.name}`;
             document.getElementById('winnerPool').textContent = `Pool: ${pool.toFixed(4)} ETH`;
             document.getElementById('winnerOverlay').classList.add('active');
+            addLog(`🏆 Winner: #${race[9]} ${DRIVERS[race[9]]?.name}! Pool: ${pool.toFixed(4)} ETH`, 'win');
+            changeAgentChat();
+        }
+    } catch(e) { console.error('Poll:', e); }
+}
+
+function animateCars(race) {
+    const laneH = 440 / 10;
+    for(let i = 0; i < 10; i++) {
+        const car = document.getElementById(`car${i}`);
+        const speed = document.getElementById(`speed${i}`);
+        if(!car) continue;
+        
+        let x = 120; // Start position
+        if(race[7] || race[8]) {
+            // Race finished - winner at finish, others random
+            if(i === race[9]) {
+                x = 680;
+            } else {
+                x = 200 + Math.random() * 400;
+            }
+        } else if(race[6] && !race[8]) {
+            // Racing - random positions
+            x = 120 + Math.random() * 500;
         }
         
-        function dismissWinner() {
-            document.getElementById('winnerOverlay').classList.remove('active');
-        }
-        
-        // ── Provably Fair ────────────────────────────────
-        
-        async function verifyFair() {
-            alert(
-                '🔒 PROVABLY FAIR VERIFICATION\n\n' +
-                'Every race uses a commit-reveal scheme:\n\n' +
-                '1. BEFORE betting: Agent commits keccak256(seed + raceId)\n' +
-                '2. Users place bets (seed is hidden)\n' +
-                '3. AFTER betting: Agent reveals seed on-chain\n' +
-                '4. Winner = keccak256(seed, raceId, 42) % numDrivers\n\n' +
-                'Anyone can verify by checking the tx on the Robinhood Chain explorer.\n\n' +
-                'Explorer: ' + ROBINHOOD_CHAIN.blockExplorerUrls[0]
-            );
-        }
-    </script>
+        const y = 30 + i * laneH + laneH/2 - 10;
+        car.setAttribute('transform', `translate(${x},${y})`);
+        if(speed) speed.setAttribute('opacity', race[6] && !race[8] ? '1' : '0');
+    }
+}
+
+// ── Place Bet ────────────────────────────
+async function placeBet() {
+    if(!contract || !signer || selectedDriver===null) { alert('Connect wallet and select a driver!'); return; }
+    const amt = document.getElementById('betInput').value;
+    if(!amt || parseFloat(amt)<=0) { alert('Enter amount!'); return; }
+    
+    const btn = document.getElementById('betBtn');
+    btn.disabled = true;
+    btn.textContent = 'PLACING...';
+    addLog(`Betting ${amt} ETH on #${selectedDriver} ${DRIVERS[selectedDriver].name}`, 'bet');
+    
+    try {
+        const tx = await contract.placeBet(currentRaceId-1, selectedDriver, { value:ethers.parseEther(amt) });
+        btn.textContent = 'CONFIRMING...';
+        await tx.wait();
+        btn.textContent = '✓ BET PLACED';
+        addLog(`Bet confirmed! TX: ${tx.hash.slice(0,16)}...`, 'bet');
+        setTimeout(() => { btn.textContent='PLACE BET'; btn.disabled=false; }, 3000);
+    } catch(e) {
+        btn.textContent = 'PLACE BET';
+        btn.disabled = false;
+        addLog(`Bet failed: ${e.reason||e.message}`, 'agent');
+        alert('Bet failed: '+(e.reason||e.message));
+    }
+}
+</script>
 </body>
 </html>
