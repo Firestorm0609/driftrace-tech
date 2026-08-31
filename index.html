@@ -27,6 +27,7 @@ button{cursor:pointer}
 .brand{font-weight:900;letter-spacing:.16em;font-size:10px}
 .muted{opacity:.55;font-size:6px}
 .wallet{margin-left:auto;padding:3px 6px;font-size:6px}
+.usd{font-size:5px;opacity:.5;margin-left:4px}
 
 /* MAIN GRID */
 .world{width:100vw;height:calc(100dvh - 28px);display:grid;grid-template-columns:minmax(118px,20vw) minmax(0,1fr);gap:4px;padding:4px}
@@ -40,10 +41,13 @@ button{cursor:pointer}
 /* CHAT BUBBLE */
 .chat-bubble{position:relative;border:1px dashed var(--dim);padding:3px 4px;font-size:5.5px;min-height:16px;overflow:hidden;margin-bottom:4px;line-height:1.3}
 .chat-bubble:after{content:'';position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid var(--dim)}
+.chat-bubble.event{border-color:var(--neon);transition:border-color .3s}
+.chat-bubble.event:after{border-top-color:var(--neon)}
 
 /* AGENT DESK */
 .desk{display:flex;align-items:flex-end;justify-content:center;gap:4px;padding-top:6px}
 .screen{width:31px;height:25px;border:1px solid var(--line);display:grid;place-items:center;text-align:center;font-size:4.5px;opacity:.7}
+.screen.flash{border-color:var(--neon);opacity:1;transition:border-color .3s}
 
 /* SVG AGENT */
 .agent-svg-wrap{position:relative;display:flex;flex-direction:column;align-items:center}
@@ -72,20 +76,35 @@ button{cursor:pointer}
 .tier{position:relative;z-index:1;font-size:12px;font-weight:900}
 .roommeta{position:absolute;z-index:1;left:6px;bottom:6px;font-size:4px;opacity:.65}
 
+/* HISTORY */
+.history{border:1px solid var(--line);margin-top:auto;padding:4px;max-height:110px;overflow-y:auto}
+.hist-title{font-size:5px;font-weight:900;letter-spacing:.08em;margin-bottom:3px;opacity:.7}
+.hist-row{font-size:4.5px;padding:2px 0;border-bottom:1px solid var(--dim);display:flex;justify-content:space-between;gap:2px}
+.hist-row:last-child{border-bottom:0}
+.hist-winner{font-weight:700}
+.hist-pool{opacity:.6}
+
 /* TRACK */
 .trackside{border:1px solid var(--line);height:100%;width:100%;min-width:0;display:grid;grid-template-rows:38px 1fr;overflow:hidden}
 .racehead{width:100%;border-bottom:1px solid var(--line);display:grid;grid-template-columns:repeat(10,minmax(0,1fr))}
 .lanehead{min-width:0;border-right:1px solid var(--dim);text-align:center;padding:4px 0;font-size:clamp(3px,.65vw,5px);overflow:hidden;white-space:nowrap}
 .lanehead b{display:block;font-size:clamp(6px,1vw,8px);margin-bottom:1px}
+.lanehead .bet-count{font-size:3.5px;opacity:.5;margin-top:1px}
 .track{width:100%;height:100%;position:relative;display:grid;grid-template-columns:repeat(10,minmax(0,1fr));overflow:hidden}
 .lane{min-width:0;position:relative;border-right:1px solid var(--line)}
 .lane:last-child,.lanehead:last-child{border-right:0}
 
-/* SVG CARS */
+/* SVG CARS + GLOW */
 .car{position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:3;transition:top 1.4s cubic-bezier(.18,.72,.2,1)}
-.car svg{width:clamp(14px,2.2vw,24px);height:clamp(22px,3.8vw,40px);display:block}
+.car svg{width:clamp(14px,2.2vw,24px);height:clamp(22px,3.8vw,40px);display:block;filter:drop-shadow(0 0 4px var(--car-glow,#ccff0044))}
 @keyframes exhaust{0%{opacity:.6;transform:translateY(0)}100%{opacity:0;transform:translateY(6px)}}
 .exhaust-puff{animation:exhaust .8s infinite ease-out}
+@keyframes speed-line{0%{opacity:.7;transform:translateY(0)}100%{opacity:0;transform:translateY(-14px)}}
+.speed-lines{opacity:0;transition:opacity .4s}
+.racing .speed-lines{opacity:1}
+.speed-line{animation:speed-line .5s infinite linear}
+.speed-line:nth-child(2){animation-delay:.15s}
+.speed-line:nth-child(3){animation-delay:.3s}
 
 .startline{position:absolute;left:0;right:0;top:28px;border-top:1px solid var(--neon);z-index:4}
 .finish{position:absolute;left:0;right:0;bottom:16px;height:6px;border-top:1px solid var(--neon);border-bottom:1px solid var(--neon);background:repeating-linear-gradient(90deg,var(--neon) 0 3px,transparent 3px 6px);opacity:.45}
@@ -94,7 +113,9 @@ button{cursor:pointer}
 /* WINNER OVERLAY */
 .winner{position:fixed;inset:0;background:#000000f2;z-index:50;display:none;place-items:center;text-align:center}
 .winner.on{display:grid}
-.winner h1{font-size:28px}
+.winner h1{font-size:28px;margin:8px 0}
+.winner-car{margin:8px auto;width:48px;height:72px}
+.winner-car svg{width:100%;height:100%;filter:drop-shadow(0 0 12px var(--winner-glow,#ccff00))}
 
 /* MOBILE */
 @media(max-width:600px){
@@ -113,11 +134,15 @@ button{cursor:pointer}
   .race-room{height:44px;padding:4px}
   .tier{font-size:9px}
   .roommeta{font-size:3.3px;left:5px;bottom:5px}
+  .history{max-height:80px}
+  .hist-row{font-size:4px}
   .trackside{grid-template-rows:32px 1fr}
   .lanehead{font-size:3px;padding:3px 0}
   .lanehead b{font-size:6px}
   .car svg{width:14px;height:22px}
   .startline{top:23px}
+  .winner h1{font-size:20px}
+  .winner-car{width:36px;height:54px}
 }
 </style>
 </head>
@@ -125,6 +150,7 @@ button{cursor:pointer}
 <header class="top">
   <div class="brand">DRIFT</div>
   <div class="muted">AUTONOMOUS RACE OPERATOR // ROBINHOOD CHAIN</div>
+  <span class="usd" id="ethUsd"></span>
   <button class="wallet" id="walletBtn">CONNECT</button>
 </header>
 <main class="world">
@@ -134,46 +160,35 @@ button{cursor:pointer}
       <div class="room">
         <div class="chat-bubble" id="chat">booting race systems...</div>
         <div class="desk">
-          <div class="screen">RACE<br>CONTROL</div>
+          <div class="screen" id="scrL">RACE<br>CONTROL</div>
           <div class="agent-svg-wrap">
             <svg class="agent-svg" viewBox="0 0 32 52" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <!-- Antenna -->
               <line x1="16" y1="8" x2="16" y2="2" stroke="#ccff00" stroke-width="1"/>
               <circle class="ant-dot" cx="16" cy="2" r="1.5" fill="#ccff00"/>
-              <!-- Head -->
               <rect x="6" y="8" width="20" height="14" rx="7" stroke="#ccff00" stroke-width="1" fill="none"/>
-              <!-- Eyes -->
               <ellipse class="agent-eye" cx="12" cy="15" rx="2" ry="1.5" fill="#ccff00"/>
               <ellipse class="agent-eye" cx="20" cy="15" rx="2" ry="1.5" fill="#ccff00"/>
-              <!-- Neck -->
               <line x1="14" y1="22" x2="14" y2="25" stroke="#ccff00" stroke-width="1"/>
               <line x1="18" y1="22" x2="18" y2="25" stroke="#ccff00" stroke-width="1"/>
-              <!-- Body -->
               <rect x="8" y="25" width="16" height="12" rx="3" stroke="#ccff00" stroke-width="1" fill="none"/>
-              <!-- Chest LEDs -->
               <circle class="led-pulse" cx="13" cy="31" r="1" fill="#ccff00" opacity=".3"/>
               <circle class="led-pulse" cx="16" cy="31" r="1" fill="#ccff00" style="animation-delay:.5s" opacity=".3"/>
               <circle class="led-pulse" cx="19" cy="31" r="1" fill="#ccff00" style="animation-delay:1s" opacity=".3"/>
-              <!-- Arms -->
               <line x1="8" y1="28" x2="3" y2="32" stroke="#ccff00" stroke-width="1"/>
               <line x1="24" y1="28" x2="29" y2="32" stroke="#ccff00" stroke-width="1"/>
-              <!-- Hands -->
               <circle cx="3" cy="32" r="1" fill="#ccff00"/>
               <circle cx="29" cy="32" r="1" fill="#ccff00"/>
-              <!-- Legs -->
               <line x1="13" y1="37" x2="12" y2="44" stroke="#ccff00" stroke-width="1"/>
               <line x1="19" y1="37" x2="20" y2="44" stroke="#ccff00" stroke-width="1"/>
-              <!-- Feet -->
               <rect x="9" y="44" width="6" height="3" rx="1.5" stroke="#ccff00" stroke-width="1" fill="none"/>
               <rect x="17" y="44" width="6" height="3" rx="1.5" stroke="#ccff00" stroke-width="1" fill="none"/>
-              <!-- Drip lines -->
               <line x1="10" y1="50" x2="10" y2="52" stroke="#ccff00" stroke-width=".5" opacity=".3"/>
               <line x1="16" y1="50" x2="16" y2="52" stroke="#ccff00" stroke-width=".5" opacity=".3"/>
               <line x1="22" y1="50" x2="22" y2="52" stroke="#ccff00" stroke-width=".5" opacity=".3"/>
             </svg>
             <div class="agent-label">DRIFT AI</div>
           </div>
-          <div class="screen">CHAIN<br>SETTLE</div>
+          <div class="screen" id="scrR">CHAIN<br>SETTLE</div>
         </div>
       </div>
       <div class="bet">
@@ -206,6 +221,10 @@ button{cursor:pointer}
       <button class="race-room" data-tier="500"><span class="tier">$500</span><span class="roommeta">ROOM 06 // READY</span></button>
       <button class="race-room" data-tier="1000"><span class="tier">$1K</span><span class="roommeta">ROOM 07 // READY</span></button>
     </section>
+    <section class="history" id="history">
+      <div class="hist-title">RECENT RACES</div>
+      <div id="histList"><div class="hist-row" style="opacity:.4">no races yet</div></div>
+    </section>
   </aside>
   <section class="trackside">
     <div class="racehead" id="heads"></div>
@@ -219,6 +238,7 @@ button{cursor:pointer}
 <div class="winner" id="winner">
   <div>
     <div class="muted">RACE SETTLED BY DRIFT AGENT</div>
+    <div class="winner-car" id="winnerCar"></div>
     <h1 id="winnerName">WINNER</h1>
     <p id="winnerPool"></p>
     <button onclick="winner.classList.remove('on')">RETURN TO HUB</button>
@@ -229,73 +249,107 @@ button{cursor:pointer}
 <script>
 const CONTRACT='0x796c16af215C6f4c34d39cea9279c0aC79DF609e';
 const CHAIN={chainId:'0xB626',chainName:'Robinhood Chain Testnet',nativeCurrency:{name:'ETH',symbol:'ETH',decimals:18},rpcUrls:['https://robinhood-testnet.g.alchemy.com/v2/AUGVJZWHgMFRdBn7xeexx'],blockExplorerUrls:['https://explorer.testnet.chain.robinhood.com']};
-const ABI=['function currentRaceId() external view returns (uint256)','function getRace(uint256) external view returns (uint256,uint256,uint256,uint256,bytes32,bytes32,bool,bool,bool,uint8,uint256,uint256)','function getBetCount(uint256) external view returns (uint256)','function timeUntilBettingEnds(uint256) external view returns (uint256)','function placeBet(uint256,uint8) external payable'];
+const ABI=['function currentRaceId() external view returns (uint256)','function getRace(uint256) external view returns (uint256,uint256,uint256,uint256,bytes32,bytes32,bool,bool,bool,uint8,uint256,uint256)','function getBetCount(uint256) external view returns (uint256)','function getDriverBetCount(uint256,uint8) external view returns (uint256)','function timeUntilBettingEnds(uint256) external view returns (uint256)','function placeBet(uint256,uint8) external payable'];
 const D=['VIPER','PHANTOM','BLAZE','NEON','STORM','SHADOW','TITAN','RAPTOR','SURGE','FROST'];
 
-// Driver colors — each car gets a unique neon palette
+// Driver colors
 const DC=[
-  {fill:'#ff1744',stroke:'#ff5252',name:'VIPER'},    // red
-  {fill:'#00a152',stroke:'#00c853',name:'PHANTOM'},   // deep green
-  {fill:'#ffffff',stroke:'#e0e0e0',name:'BLAZE'},     // white
-  {fill:'#ff4081',stroke:'#ff80ab',name:'NEON'},      // pink
-  {fill:'#2979ff',stroke:'#82b1ff',name:'STORM'},     // blue
-  {fill:'#d500f9',stroke:'#ea80fc',name:'SHADOW'},    // purple
-  {fill:'#00e5ff',stroke:'#84ffff',name:'TITAN'},     // cyan
-  {fill:'#ffea00',stroke:'#ffff00',name:'RAPTOR'},    // yellow
-  {fill:'#ff6d00',stroke:'#ff9e40',name:'SURGE'},     // deep orange
-  {fill:'#1de9b6',stroke:'#64ffda',name:'FROST'}      // teal
+  {fill:'#ff1744',stroke:'#ff5252',name:'VIPER'},
+  {fill:'#00a152',stroke:'#00c853',name:'PHANTOM'},
+  {fill:'#ffffff',stroke:'#e0e0e0',name:'BLAZE'},
+  {fill:'#ff4081',stroke:'#ff80ab',name:'NEON'},
+  {fill:'#2979ff',stroke:'#82b1ff',name:'STORM'},
+  {fill:'#d500f9',stroke:'#ea80fc',name:'SHADOW'},
+  {fill:'#00e5ff',stroke:'#84ffff',name:'TITAN'},
+  {fill:'#ffea00',stroke:'#ffff00',name:'RAPTOR'},
+  {fill:'#ff6d00',stroke:'#ff9e40',name:'SURGE'},
+  {fill:'#1de9b6',stroke:'#64ffda',name:'FROST'}
 ];
 
-// Top-down SVG race car facing DOWN (vertical track)
-function carSVG(c){
-  return `<svg viewBox="0 0 18 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+// Top-down SVG race car facing DOWN with speed lines
+function carSVG(c,i){
+  return `<svg viewBox="0 0 18 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Speed lines (hidden by default, shown when .racing on lane) -->
+    <g class="speed-lines">
+      <line class="speed-line" x1="5" y1="38" x2="5" y2="42" stroke="${c.stroke}" stroke-width=".5" opacity=".5"/>
+      <line class="speed-line" x1="9" y1="38" x2="9" y2="44" stroke="${c.stroke}" stroke-width=".6" opacity=".6"/>
+      <line class="speed-line" x1="13" y1="38" x2="13" y2="42" stroke="${c.stroke}" stroke-width=".5" opacity=".5"/>
+    </g>
     <!-- Exhaust puffs -->
-    <circle class="exhaust-puff" cx="7" cy="30" r="1.5" fill="${c.fill}" opacity=".4"/>
-    <circle class="exhaust-puff" cx="11" cy="30" r="1.5" fill="${c.fill}" opacity=".3" style="animation-delay:.3s"/>
+    <circle class="exhaust-puff" cx="7" cy="36" r="1.5" fill="${c.fill}" opacity=".4"/>
+    <circle class="exhaust-puff" cx="11" cy="36" r="1.5" fill="${c.fill}" opacity=".3" style="animation-delay:.3s"/>
     <!-- Rear wing -->
-    <rect x="2" y="26" width="14" height="2" rx="1" stroke="${c.stroke}" stroke-width=".8" fill="${c.fill}" fill-opacity=".15"/>
+    <rect x="2" y="32" width="14" height="2" rx="1" stroke="${c.stroke}" stroke-width=".8" fill="${c.fill}" fill-opacity=".15"/>
     <!-- Rear wheels -->
-    <rect x="1" y="22" width="3" height="5" rx="1" stroke="${c.stroke}" stroke-width=".6" fill="${c.fill}" fill-opacity=".3"/>
-    <rect x="14" y="22" width="3" height="5" rx="1" stroke="${c.stroke}" stroke-width=".6" fill="${c.fill}" fill-opacity=".3"/>
+    <rect x="1" y="28" width="3" height="5" rx="1" stroke="${c.stroke}" stroke-width=".6" fill="${c.fill}" fill-opacity=".3"/>
+    <rect x="14" y="28" width="3" height="5" rx="1" stroke="${c.stroke}" stroke-width=".6" fill="${c.fill}" fill-opacity=".3"/>
     <!-- Body -->
-    <path d="M5 26 L4 12 Q4 6 9 4 Q14 6 14 12 L13 26 Z" stroke="${c.stroke}" stroke-width=".8" fill="${c.fill}" fill-opacity=".2"/>
+    <path d="M5 32 L4 14 Q4 7 9 5 Q14 7 14 14 L13 32 Z" stroke="${c.stroke}" stroke-width=".8" fill="${c.fill}" fill-opacity=".2"/>
     <!-- Cockpit -->
-    <ellipse cx="9" cy="18" rx="2.5" ry="3.5" stroke="${c.stroke}" stroke-width=".6" fill="${c.fill}" fill-opacity=".35"/>
+    <ellipse cx="9" cy="20" rx="2.5" ry="3.5" stroke="${c.stroke}" stroke-width=".6" fill="${c.fill}" fill-opacity=".35"/>
     <!-- Front wheels -->
-    <rect x="2" y="10" width="2.5" height="4.5" rx="1" stroke="${c.stroke}" stroke-width=".6" fill="${c.fill}" fill-opacity=".3"/>
-    <rect x="13.5" y="10" width="2.5" height="4.5" rx="1" stroke="${c.stroke}" stroke-width=".6" fill="${c.fill}" fill-opacity=".3"/>
+    <rect x="2" y="12" width="2.5" height="4.5" rx="1" stroke="${c.stroke}" stroke-width=".6" fill="${c.fill}" fill-opacity=".3"/>
+    <rect x="13.5" y="12" width="2.5" height="4.5" rx="1" stroke="${c.stroke}" stroke-width=".6" fill="${c.fill}" fill-opacity=".3"/>
     <!-- Nose cone -->
-    <path d="M7 6 L9 2 L11 6" stroke="${c.stroke}" stroke-width=".7" fill="${c.fill}" fill-opacity=".25"/>
+    <path d="M7 7 L9 3 L11 7" stroke="${c.stroke}" stroke-width=".7" fill="${c.fill}" fill-opacity=".25"/>
     <!-- Center stripe -->
-    <line x1="9" y1="4" x2="9" y2="26" stroke="${c.stroke}" stroke-width=".4" opacity=".5"/>
+    <line x1="9" y1="5" x2="9" y2="32" stroke="${c.stroke}" stroke-width=".4" opacity=".5"/>
     <!-- Headlights -->
-    <circle cx="7.5" cy="5" r=".8" fill="${c.fill}" opacity=".9"/>
-    <circle cx="10.5" cy="5" r=".8" fill="${c.fill}" opacity=".9"/>
+    <circle cx="7.5" cy="5.5" r=".8" fill="${c.fill}" opacity=".9"/>
+    <circle cx="10.5" cy="5.5" r=".8" fill="${c.fill}" opacity=".9"/>
   </svg>`;
 }
 
 let provider,signer,contract,rid=0,lastWinner=null,selectedTier=1;
+let ethPrice=0,raceHistory=[],prevStatus='';
 const $=id=>document.getElementById(id);
 
+// Fetch ETH price for USD display
+async function fetchEthPrice(){
+  try{
+    let r=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd');
+    let d=await r.json();
+    ethPrice=d.ethereum.usd;
+    $('ethUsd').textContent='ETH ~$'+ethPrice.toLocaleString();
+  }catch(e){}
+}
+fetchEthPrice();
+setInterval(fetchEthPrice,60000);
+
 function build(){
-  $('heads').innerHTML=D.map((n,i)=>`<div class="lanehead"><b>${i+1}</b>${n}</div>`).join('');
+  $('heads').innerHTML=D.map((n,i)=>{
+    let c=DC[i];
+    return `<div class="lanehead" style="--lc:${c.fill}"><b>${i+1}</b>${n}<div class="bet-count" id="bc${i}">0 bets</div></div>`;
+  }).join('');
   $('driver').innerHTML=D.map((n,i)=>`<option value="${i}">${i+1} // ${n}</option>`).join('');
   for(let i=0;i<10;i++){
     let l=document.createElement('div');
     l.className='lane';
-    l.innerHTML=`<div class="car" id="car${i}">${carSVG(DC[i])}</div>`;
+    l.innerHTML=`<div class="car" id="car${i}" style="--car-glow:${DC[i].fill}66">${carSVG(DC[i],i)}</div>`;
     $('track').appendChild(l);
   }
   document.querySelectorAll('.race-room').forEach(x=>x.onclick=()=>{
     document.querySelectorAll('.race-room').forEach(y=>y.classList.remove('active'));
     x.classList.add('active');
     selectedTier=Number(x.dataset.tier);
-    $('chat').textContent='$'+selectedTier+' room selected.';
+    agentSay('$'+selectedTier+' room selected.');
   });
 }
 build();
 
-const chatter=[
+// Agent chat — reactive to events
+function agentSay(msg,isEvent){
+  let el=$('chat');
+  el.textContent=msg;
+  if(isEvent){
+    el.classList.add('event');
+    $('scrL').classList.add('flash');
+    $('scrR').classList.add('flash');
+    setTimeout(()=>{el.classList.remove('event');$('scrL').classList.remove('flash');$('scrR').classList.remove('flash')},2000);
+  }
+}
+
+const idleChat=[
   'scanning the grid.','opening the books.','commit locked on-chain.',
   'humans are choosing their machines.','no favorites. only entropy.',
   'bet window is live.','locking the grid.','seed stays with me until reveal.',
@@ -303,13 +357,36 @@ const chatter=[
   'the grid never lies.','wheels down. eyes up.','chance is the only constant.',
   'the chain remembers everything.','no bailouts. no favors.','entropy loves company.'
 ];
-let chatIdx=0;
-function chat(){
-  $('chat').textContent=chatter[chatIdx%chatter.length];
-  chatIdx++;
+let chatIdx=0,idleTimer;
+function startIdleChat(){
+  clearInterval(idleTimer);
+  chatIdx=0;
+  agentSay(idleChat[0]);
+  idleTimer=setInterval(()=>{
+    chatIdx=(chatIdx+1)%idleChat.length;
+    agentSay(idleChat[chatIdx]);
+  },4200);
 }
-chat();
-setInterval(chat,4200);
+startIdleChat();
+
+function flashEvent(msg){
+  agentSay(msg,true);
+  clearTimeout(flashEvent._t);
+  flashEvent._t=setTimeout(()=>startIdleChat(),6000);
+}
+
+// Race history
+function addHistory(rid,winnerIdx,pool){
+  raceHistory.unshift({rid,winner:DC[winnerIdx].name,color:DC[winnerIdx].fill,pool});
+  if(raceHistory.length>12)raceHistory.pop();
+  renderHistory();
+}
+function renderHistory(){
+  if(!raceHistory.length)return;
+  $('histList').innerHTML=raceHistory.map(h=>
+    `<div class="hist-row"><span class="hist-winner" style="color:${h.color}">#${h.rid} ${h.winner}</span><span class="hist-pool">${h.pool} ETH</span></div>`
+  ).join('');
+}
 
 async function connect(){
   if(!window.ethereum)return alert('Install MetaMask');
@@ -323,6 +400,7 @@ async function connect(){
   $('walletBtn').textContent=a.slice(0,6)+'…'+a.slice(-4);
   $('betBtn').disabled=false;
   $('betBtn').textContent='PLACE BET';
+  agentSay('wallet connected. '+a.slice(0,6)+' online.',true);
   poll();
 }
 $('walletBtn').onclick=connect;
@@ -339,25 +417,62 @@ async function poll(){
     if(!cid)return;
     rid=cid-1;
     let r=await c.getRace(rid),tl=Number(await c.timeUntilBettingEnds(rid)),pool=Number(ethers.formatEther(r[10]));
+    let status=r[8]?'SETTLED':r[7]?'RUNNING':r[6]?'BETTING':'PENDING';
+    let poolUsd=ethPrice?(pool*ethPrice).toFixed(2):'';
+
     $('raceId').textContent='#'+rid;
     $('pool').textContent=pool.toFixed(4)+' ETH';
     $('timer').textContent=String(Math.floor(tl/60)).padStart(2,'0')+':'+String(tl%60).padStart(2,'0');
-    $('raceStatus').textContent=r[8]?'SETTLED':r[7]?'RUNNING':r[6]?'BETTING':'PENDING';
+    $('raceStatus').textContent=status;
     let z='0x'+'0'.repeat(64);
     $('commit').textContent=r[4]!==z?r[4].slice(0,12)+'…':'—';
     $('seed').textContent=r[5]!==z?r[5].slice(0,12)+'…':'HIDDEN';
     $('win').textContent=r[7]?D[Number(r[9])]:'—';
-    cars(r);
+
+    // Bet counts per driver
+    for(let i=0;i<10;i++){
+      try{
+        let bc=Number(await c.getDriverBetCount(rid,i));
+        let el=$('bc'+i);
+        if(el)el.textContent=bc+' bet'+(bc!==1?'s':'');
+      }catch(e){}
+    }
+
+    // Reactive agent chat on status change
+    if(status!==prevStatus){
+      if(status==='BETTING')flashEvent('race #'+rid+' open. place your bets.');
+      else if(status==='RUNNING')flashEvent('grid locked. wheels down.');
+      else if(status==='SETTLED')flashEvent('race #'+rid+' settled. chain confirms.');
+      prevStatus=status;
+    }
+
+    // Racing speed lines
+    for(let i=0;i<10;i++){
+      let lane=$('car'+i)?.parentElement;
+      if(lane){
+        if(status==='RUNNING')lane.classList.add('racing');
+        else lane.classList.remove('racing');
+      }
+    }
+
+    cars(r,status);
+
     if(r[8]&&r[7]&&Number(r[9])!==lastWinner){
       lastWinner=Number(r[9]);
-      $('winnerName').textContent=D[lastWinner];
-      $('winnerPool').textContent='POOL '+pool.toFixed(4)+' ETH';
+      let w=DC[lastWinner];
+      $('winnerName').textContent=w.name;
+      $('winnerName').style.color=w.fill;
+      $('winnerPool').textContent='POOL '+pool.toFixed(4)+' ETH'+(poolUsd?' (~$'+poolUsd+')':'');
+      $('winnerCar').innerHTML=carSVG(w,lastWinner);
+      $('winnerCar').style.setProperty('--winner-glow',w.fill);
       $('winner').classList.add('on');
+      addHistory(rid,lastWinner,pool.toFixed(4));
+      flashEvent(D[lastWinner]+' wins race #'+rid+'!');
     }
   }catch(e){console.error(e)}
 }
 
-function cars(r){
+function cars(r,status){
   const t=$('track'),max=Math.max(45,t.clientHeight-42);
   for(let i=0;i<10;i++){
     let c=$('car'+i),top=8;
@@ -374,16 +489,18 @@ $('betBtn').onclick=async()=>{
   let b=$('betBtn');
   b.disabled=true;
   b.textContent='SUBMITTING…';
+  flashEvent('bet received. '+amt+' ETH → '+D[Number($('driver').value)]+'.');
   try{
     let tx=await contract.placeBet(rid,Number($('driver').value),{value:ethers.parseEther(amt)});
     b.textContent='CONFIRMING…';
     await tx.wait();
     b.textContent='BET PLACED';
-    $('chat').textContent='bet received. chain confirming.';
+    flashEvent('chain confirmed. tx: '+tx.hash.slice(0,14)+'…');
     setTimeout(()=>{b.disabled=false;b.textContent='PLACE BET'},2200);
   }catch(e){
     b.disabled=false;
     b.textContent='PLACE BET';
+    agentSay('tx rejected: '+(e.reason||e.shortMessage||e.message).slice(0,40),true);
     alert(e.reason||e.shortMessage||e.message);
   }
 };
