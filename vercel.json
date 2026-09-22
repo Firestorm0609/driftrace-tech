@@ -12,6 +12,7 @@
     }
   ],
   "routes": [
+    { "src": "/pump/(.*)", "dest": "https://frontend-api-v3.pump.fun/$1" },
     { "src": "/(.*)", "dest": "/index.html" }
   ],
   "headers": [
