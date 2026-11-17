@@ -316,6 +316,34 @@ document.addEventListener('click',function(){initAudio()},{once:true});
    lowpass for the motor, filtered noise for the wind. Both follow the car,
    so speed is audible before it is read. */
 var eng=null;
+/* five gears: each ratio pulls to a hard top, then the pitch drops and the
+   next one takes over, so every shift is something you can hear */
+var GEARS=[0.20,0.40,0.60,0.80,1.00];
+var gearNow=1,gearJolt=0,shiftCut=0;
+function gearAt(k){
+  if(!(k>0))return{g:1,rpm:0};
+  for(var i=0;i<GEARS.length;i++){
+    if(k<=GEARS[i]){
+      var lo=i?GEARS[i-1]:0;
+      return{g:i+1,rpm:Math.max(0,Math.min(1,(k-lo)/(GEARS[i]-lo)))};
+    }
+  }
+  return{g:GEARS.length,rpm:1};
+}
+function shiftBlip(up){
+  if(!soundEnabled||!audioCtx)return;
+  try{
+    var t=audioCtx.currentTime,d=.07;
+    var b=audioCtx.createBuffer(1,Math.floor(audioCtx.sampleRate*d),audioCtx.sampleRate);
+    var dd=b.getChannelData(0),i;
+    for(i=0;i<dd.length;i++)dd[i]=(Math.random()*2-1)*(1-i/dd.length);
+    var src=audioCtx.createBufferSource();src.buffer=b;
+    var f=audioCtx.createBiquadFilter();f.type='highpass';f.frequency.value=up?2400:900;
+    var g=audioCtx.createGain();
+    g.gain.setValueAtTime(up?0.055:0.035,t);g.gain.exponentialRampToValueAtTime(.001,t+d);
+    src.connect(f);f.connect(g);g.connect(audioCtx.destination);src.start(t);
+  }catch(e){}
+}
 function engineStart(){
   initAudio();
   if(!audioCtx||eng)return;
@@ -341,14 +369,16 @@ function engineUpdate(){
   if(!eng||!audioCtx)return;
   try{
     var k=Math.min(1,Math.abs(SPD)/MAXSPD),t=audioCtx.currentTime;
-    var f0=52+k*132,live=soundEnabled?1:0;
+    var gi=gearAt(k);
+    var f0=44+gi.rpm*122+(gi.g-1)*3,live=soundEnabled?1:0;
     var load=(mode==='run')&&keys.u?1:((mode==='run')?(keys.d?0.25:0.5):0.35);
-    eng.o1.frequency.setTargetAtTime(f0,t,0.07);
-    eng.o2.frequency.setTargetAtTime(f0*1.5,t,0.07);
-    eng.f.frequency.setTargetAtTime(620+k*2800,t,0.09);
-    eng.g.gain.setTargetAtTime(live*(0.030+0.026*load+k*0.020),t,0.12);
-    eng.ng.gain.setTargetAtTime(live*(0.010+k*k*0.075),t,0.20);
-    eng.nf.frequency.setTargetAtTime(700+k*2400,t,0.20);
+    var cut=shiftCut>0?0.45:1;
+    eng.o1.frequency.setTargetAtTime(f0,t,0.035);
+    eng.o2.frequency.setTargetAtTime(f0*1.5,t,0.035);
+    eng.f.frequency.setTargetAtTime(560+gi.rpm*2100+gi.g*140,t,0.06);
+    eng.g.gain.setTargetAtTime(live*cut*(0.032+0.026*load+k*0.022),t,shiftCut>0?0.015:0.10);
+    eng.ng.gain.setTargetAtTime(live*(0.010+k*k*0.085),t,0.20);
+    eng.nf.frequency.setTargetAtTime(700+k*2700,t,0.20);
   }catch(e){}
 }
 
@@ -405,7 +435,7 @@ var smoke=[],nextPuff=0;
 /* ── MANUAL RUN ──
    One car, one driver, one finish line. The bend at the car pushes it
    toward the grass and the steering has to earn the line back. */
-var MAXSPD=620,REVSPD=120,RUNLEN=22000,RUNTIME=60,HUDTOP=300;
+var MAXSPD=920,REVSPD=120,RUNLEN=33000,RUNTIME=60,HUDTOP=450;
 var mode='idle',runT=0,runEnd=0,finishZ=0,braking=false;
 var keys={l:0,r:0,u:0,d:0},steerV=0,offRoad=false;
 var ONG=0.63;   /* drift past this and a wheel is on the grass */
@@ -429,17 +459,20 @@ function drawHud(){
   shadeText('TIME '+fmtT(mode==='run'?runT:runEnd),4,4,(mode==='run'&&runT>50)?'#ff8a4a':'#eaf6d2');
   var kmh=Math.round(SPD/MAXSPD*HUDTOP);
   shadeText((SPD<-1?'R '+Math.abs(kmh):kmh)+' KM/H',RW-4,4,offRoad?'#ffb27a':'#ccff00','right');
+  var gl=SPD<-1?'R':String(gearAt(Math.abs(SPD)/MAXSPD).g);
+  shadeText('GEAR '+gl,RW-4,25,gearJolt>0.25?'#ffffff':'#a9c98c','right');
   var pw=RW-8,prog=Math.max(0,Math.min(1,1-left/RUNLEN));
   sg.fillStyle='rgba(6,12,4,.55)';sg.fillRect(4,16,pw,3);
   sg.fillStyle=offRoad?'#ff7a3d':'#ccff00';sg.fillRect(4,16,Math.max(1,Math.round(pw*prog)),3);
-  if(mode==='run'&&left<2600)shadeText('FINISH AHEAD',RW*0.5,RH*0.24,'#ffffff','center');
+  if(mode==='run'&&left<3800)shadeText('FINISH AHEAD',RW*0.5,RH*0.24,'#ffffff','center');
   if(mode==='done')shadeText('FINISH  '+fmtT(runEnd),RW*0.5,RH*0.40,'#ccff00','center');
   if(mode==='timeup')shadeText('TIME UP  '+Math.round(RUNLEN-left)+'/'+RUNLEN,RW*0.5,RH*0.40,'#ff7a3d','center');
   if(mode!=='run')shadeText('PRESS ENTER TO RUN AGAIN',RW*0.5,RH*0.40+13,'#a9c98c','center');
 }
 function startRun(){
   if(mode==='run')return;
-  mode='run';runT=0;runEnd=0;steerV=0;drift=0;SPD=150;
+  mode='run';runT=0;runEnd=0;steerV=0;drift=0;SPD=60;
+  gearNow=gearAt(SPD/MAXSPD).g;gearJolt=0;shiftCut=0;
   finishZ=camZ+CARD+RUNLEN;   /* measured from the car, so the bar starts at zero */
   SFX.raceStart();
   engineStart();
@@ -562,21 +595,21 @@ function drawCar(cx,cy,tilt){
 var STK=[];
 function newStreak(){return{side:Math.random()<0.5?-1:1,off:1.8+Math.random()*3.0,z:1200+Math.random()*2600}}
 function drawStreaks(dt,spdK,HZY){
-  if(!STK.length&&spdK>0.10)for(var n=0;n<70;n++)STK.push(newStreak());
+  if(!STK.length&&spdK>0.10)for(var n=0;n<90;n++)STK.push(newStreak());
   if(!STK.length)return;
   var live=Math.min(1,spdK*2.4);
   for(var i=0;i<STK.length;i++){
     var s=STK[i];
     s.z-=SPD*dt;
     if(s.z<120||s.z>4200){STK[i]=newStreak();continue}
-    var z1=s.z,z2=s.z+90+Math.abs(SPD)*0.5;
+    var z1=s.z,z2=s.z+90+Math.abs(SPD)*0.58;
     var x1=RW*0.5+(roadX(camZ+z1)+s.side*ROADH*s.off-camX)*FOC/z1;
     var x2=RW*0.5+(roadX(camZ+z2)+s.side*ROADH*s.off-camX)*FOC/z2;
     var y1=HZY+FOC*CAMH/z1,y2=HZY+FOC*CAMH/z2;
     if(y1>RH+6||y2<HZY||(x1<-24&&x2<-24)||(x1>RW+24&&x2>RW+24))continue;
     var a=(0.12+0.40*(1-(z1-120)/4100))*live;
     sg.fillStyle='rgba(232,246,214,'+a.toFixed(2)+')';
-    var dx=x2-x1,dy=y2-y1,dn=Math.max(1,Math.min(46,Math.round(Math.sqrt(dx*dx+dy*dy))));
+    var dx=x2-x1,dy=y2-y1,dn=Math.max(1,Math.min(58,Math.round(Math.sqrt(dx*dx+dy*dy))));
     for(var t=0;t<=dn;t++){var u=t/dn;
       sg.fillRect(Math.round(x1+dx*u),Math.round(y1+dy*u),1,1);}
   }
@@ -608,22 +641,31 @@ function render(ms){
     drift=Math.max(-1.05,Math.min(1.05,drift));
     if(mode==='run'){
       /* the brake brings the car to a dead stop and then reverses it */
-      if(keys.u)SPD=Math.min(MAXSPD,SPD+300*dt);
+      if(keys.u)SPD=Math.min(MAXSPD,SPD+400*dt);
       else if(keys.d){
-        if(SPD>0)SPD=Math.max(0,SPD-900*dt);
+        if(SPD>0)SPD=Math.max(0,SPD-1400*dt);
         else SPD=Math.max(-REVSPD,SPD-300*dt);
       }else{
-        if(SPD>0)SPD=Math.max(0,SPD-70*dt);
+        if(SPD>0)SPD=Math.max(0,SPD-100*dt);
         else SPD=Math.min(0,SPD+220*dt);
       }
       var capF=offRoad?MAXSPD*0.45:MAXSPD,capR=offRoad?REVSPD*0.45:REVSPD;
-      if(SPD>capF)SPD=Math.max(capF,SPD-420*dt);
-      if(SPD<-capR)SPD=Math.min(-capR,SPD+420*dt);
+      if(SPD>capF)SPD=Math.max(capF,SPD-620*dt);
+      if(SPD<-capR)SPD=Math.min(-capR,SPD+620*dt);
       if(sCar>=finishZ){mode='done';runEnd=runT;SFX.win();}
     }else{
       SPD=Math.max(0,SPD-150*dt);
     }
   }
+
+  /* the box reads the speed and steps up a ratio: a click, a cut in the
+     motor, and a short squat on the camera mark every shift */
+  if(mode==='run'&&Math.abs(SPD)>2){
+    var ng=gearAt(Math.abs(SPD)/MAXSPD).g;
+    if(ng!==gearNow){shiftBlip(ng>gearNow);shiftCut=.09;gearJolt=1;gearNow=ng;}
+  }
+  gearJolt=Math.max(0,gearJolt-dt*5.5);
+  shiftCut=Math.max(0,shiftCut-dt);
 
   camZ+=SPD*dt;
   if(camZ<0){camZ=0;if(SPD<0)SPD=0;}
@@ -633,8 +675,8 @@ function render(ms){
   /* SPEED CUES: the camera drops onto the tarmac as you wind it up, and
      starts to buzz at the top end. HZY is this frame's shaken horizon. */
   var spdK=Math.max(0,Math.min(1,(Math.abs(SPD)-140)/(MAXSPD-140)));
-  CAMH=520-52*spdK*spdK;
-  var shake=spdK>0.55?Math.round((Math.random()*2-1)*1.2*(spdK-0.55)/0.45):0;
+  CAMH=520-72*spdK*spdK-9*gearJolt;
+  var shake=spdK>0.5?Math.round((Math.random()*2-1)*2.0*(spdK-0.5)/0.5):0;
   var HZY=HZ+shake;
 
   var y,z,s,i;
