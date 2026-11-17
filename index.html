@@ -476,7 +476,7 @@ var ASPH=(function(){
 })();
 
 var camZ=0,camX=roadX(0),drift=0,driftV=0;
-var smoke=[],nextPuff=0,sparks=[];
+var smoke=[],nextPuff=0,sparks=[],fumes=[],nextFume=0;
 
 /* ── MANUAL RUN ──
    You against one rival. The bend pushes both cars toward the grass; the
@@ -550,7 +550,7 @@ function startRun(){
   rivZ=runStartZ;rivSpd=0;rivDrift=0.58;rivSteer=0;rivBrake=false;rivDone=false;rivT=0;rivPlan=0;
   rivX=roadX(rivZ)+rivDrift*ROADH;
   bumpT=0;bumpMag=0;driftV=0;rivDriftV=0;
-  smoke=[];sparks=[];STK.length=0;nextPuff=0;
+  smoke=[];sparks=[];STK.length=0;nextPuff=0;fumes=[];nextFume=0;
   engineStart();
   SFX.count();
 }
@@ -769,6 +769,85 @@ function drawSparks(dt){
   sg.globalAlpha=1;
 }
 
+/* ── WHOLE-BODY CONTACT ──
+   The car is not a centre point and not four separate probes: it is one
+   oriented rectangle covering the tyres and bumper tips. SAT tests every
+   face and edge pair, so contact can start anywhere around the body. */
+function boxSupport(cx,cz,hw,hl,th,dx,dz){
+  var c=Math.cos(th),s=Math.sin(th);
+  var du=dx*c+dz*s,dv=-dx*s+dz*c;
+  var su=du>=0?1:-1,sv=dv>=0?1:-1;
+  return{x:cx+c*hw*su-s*hl*sv,z:cz+s*hw*su+c*hl*sv};
+}
+function boxContact(ax,az,ahw,ahl,ath,bx,bz,bhw,bhl,bth){
+  var ac=Math.cos(ath),as=Math.sin(ath),bc=Math.cos(bth),bs=Math.sin(bth);
+  var dx=ax-bx,dz=az-bz,best=1e9,bnx=1,bnz=0,i;
+  var axes=[[ac,as],[-as,ac],[bc,bs],[-bs,bc]];
+  for(i=0;i<4;i++){
+    var nx=axes[i][0],nz=axes[i][1];
+    var ra=ahw*Math.abs(nx*ac+nz*as)+ahl*Math.abs(-nx*as+nz*ac);
+    var rb=bhw*Math.abs(nx*bc+nz*bs)+bhl*Math.abs(-nx*bs+nz*bc);
+    var ov=ra+rb-Math.abs(dx*nx+dz*nz);
+    if(ov<=0)return{hit:false};
+    if(ov<best){
+      best=ov;bnx=nx;bnz=nz;
+      if(dx*nx+dz*nz<0){bnx=-bnx;bnz=-bnz;}
+    }
+  }
+  var pa=boxSupport(ax,az,ahw,ahl,ath,-bnx,-bnz);
+  var pb=boxSupport(bx,bz,bhw,bhl,bth,bnx,bnz);
+  return{hit:true,pen:best,nx:bnx,nz:bnz,x:(pa.x+pb.x)*0.5,z:(pa.z+pb.z)*0.5};
+}
+
+/* ── EXHAUST FUMES ──
+   Small grey puffs leave the tail pipes, drift toward the camera at speed,
+   and rise while the cars idle on the grid. */
+function addFumePuff(x,y,sc,power,side){
+  var p=Math.max(0,Math.min(1,power||0));
+  var moving=mode==='run'&&Math.abs(SPD)>90;
+  fumes.push({
+    x:x+(Math.random()*3-1.5)*sc,y:y+(Math.random()*2-1)*sc,
+    vx:(side*(4+11*p)+(Math.random()*4-2))*sc,
+    vy:(-2-(moving?8:3)*p-Math.random()*4)*sc,
+    r:(1.0+Math.random()*1.5)*sc,grow:(3.2+5.5*p)*sc,
+    a:.18+.16*p,life:.55+Math.random()*.55
+  });
+  if(fumes.length>110)fumes.splice(0,fumes.length-110);
+}
+function drawFumes(dt,HZY,carX){
+  var live=mode==='idle'||mode==='countdown'||mode==='run'||mode==='done'||mode==='timeup';
+  nextFume-=dt;
+  if(live&&nextFume<=0&&fumes.length<110){
+    var pace=(mode==='run'&&keys.u)?.055:.12;
+    if(mode==='idle')pace=.10;
+    nextFume=pace*(.72+Math.random()*.55);
+    var pBaseX=RW*0.5+(carX-camX)*FOC/CARD,pBaseY=RH*0.80-2;
+    var pPower=Math.max(.22,Math.abs(SPD)/MAXSPD);
+    var side=Math.random()<.5?-1:1;
+    addFumePuff(pBaseX+side*CARW*.50,pBaseY-CARW*.045,1,pPower,side);
+    var rv=rivalProjection(HZY,camX);
+    if(rv){
+      var rPower=Math.max(.25,Math.min(1,rivSpd/MAXSPD));
+      var rside=Math.random()<.5?-1:1;
+      addFumePuff(rv.x+rside*CARW*.50*rv.sc,rv.y-CARW*.045*rv.sc,rv.sc,rPower,rside);
+    }
+  }
+  for(var i=fumes.length-1;i>=0;i--){
+    var p=fumes[i];
+    p.x+=p.vx*dt;p.y+=p.vy*dt;p.r+=p.grow*dt;
+    p.a-=dt*.38;p.life-=dt;
+    if(p.life<=0||p.a<=0||p.y>RH+10||p.x<-16||p.x>RW+16){fumes.splice(i,1);continue}
+    var q=Math.max(1,Math.round(p.r));
+    sg.globalAlpha=Math.min(1,p.a);
+    sg.fillStyle='#aeb4b6';
+    sg.fillRect(Math.round(p.x-q),Math.round(p.y-q),q*2,q*2);
+    sg.globalAlpha=Math.min(1,p.a*.55);
+    sg.fillStyle='#62696c';
+    sg.fillRect(Math.round(p.x-q*.55),Math.round(p.y-q*.55),Math.max(1,Math.round(q*.8)),Math.max(1,Math.round(q*.8)));
+  }
+  sg.globalAlpha=1;
+}
+
 function render(ms){
   if(!sg)return;
   var dt=Math.min(.05,(ms-(render.last||ms))/1000);render.last=ms;
@@ -879,25 +958,23 @@ function render(ms){
   sCar=camZ+CARD;
   var sparkRequest=null;
 
-  /* Full-car contact. Both axes of the body rectangle are tested, so the
-     nose, tail, flank or a corner can take the hit. The overlap correction
-     and the impulse are shared by both cars; this is a 2D rigid-contact
-     model in track space, not a centre-point proximity check. */
+  /* Whole-body contact: an oriented rectangle follows each car's visual
+     yaw and covers the tyres and bumper tips. SAT checks every face and
+     edge pair, so the collision can start at any point around the body.
+     Separation and the normal/tangential impulse are shared by both cars. */
   if(mode!=='idle'&&mode!=='countdown'){
-    var ddx=(rivDrift-drift)*ROADH,ddz=rivZ-sCar;
+    var playerTilt=drift*0.13+steerV*0.05+driftV*0.06;
+    var rivalTilt=rivDrift*0.13+rivSteer*0.05+rivDriftV*0.06;
     /* The camera drops as speed rises, compressing vertical perspective;
        match the longitudinal body edge to the drawn car at this height. */
     var contactZ=FOC*CAMH/Math.max(40,RH*0.80-CARW*0.79-HZ)-CARD;
     var carHalfL=Math.max(carWorldW*0.43,Math.min(carWorldW*0.90,contactZ*0.5));
-    var overlapX=carHalfW*2-Math.abs(ddx);
-    var overlapZ=carHalfL*2-Math.abs(ddz);
-    if(overlapX>0&&overlapZ>0){
-      /* Minimum-translation axis: the car is a rectangle in x/z, so a
-         corner contact is resolved along whichever edge is least buried. */
-      var axisX=overlapX<overlapZ;
-      var pen=axisX?overlapX:overlapZ;
-      var nx=axisX?(ddx>0?-1:1):0;
-      var nz=axisX?0:(ddz>0?-1:1);
+    var playerWorldX=roadX(sCar)+drift*ROADH;
+    rivX=roadX(rivZ)+rivDrift*ROADH;
+    var hit=boxContact(playerWorldX,sCar,carHalfW,carHalfL,-playerTilt,
+                       rivX,rivZ,carHalfW,carHalfL,-rivalTilt);
+    if(hit.hit){
+      var nx=hit.nx,nz=hit.nz,pen=hit.pen;
 
       /* Velocities before position correction, so the correction itself
          does not get counted as collision speed. */
@@ -906,13 +983,31 @@ function render(ms){
       var pVZ=SPD,rVZ=rivSpd;
 
       var corr=Math.max(0,pen-0.05)*0.5;
-      if(axisX){
-        drift=Math.max(-1.05,Math.min(1.05,drift+nx*corr/ROADH));
-        rivDrift=Math.max(-1.05,Math.min(1.05,rivDrift-nx*corr/ROADH));
-      }else{
-        camZ=Math.max(0,camZ+nz*corr);
-        rivZ=Math.max(0,rivZ-nz*corr);
+      drift=Math.max(-1.05,Math.min(1.05,drift+nx*corr/ROADH));
+      rivDrift=Math.max(-1.05,Math.min(1.05,rivDrift-nx*corr/ROADH));
+      camZ=Math.max(0,camZ+nz*corr);
+      rivZ=Math.max(0,rivZ-nz*corr);
+      sCar=camZ+CARD;
+      rivX=roadX(rivZ)+rivDrift*ROADH;
+
+      /* A rotated corner can leave a thin sliver on the first axis, and
+         the first correction changes the visual yaw enough to widen the
+         boxes again. Repeat the positional pass with the updated yaw,
+         without applying a second impulse, until the body is clear. */
+      for(var pass=0;pass<3;pass++){
+        var postX=roadX(sCar)+drift*ROADH;
+        var pt=drift*0.13+steerV*0.05+driftV*0.06;
+        var rt=rivDrift*0.13+rivSteer*0.05+rivDriftV*0.06;
+        var post=boxContact(postX,sCar,carHalfW,carHalfL,-pt,
+                            rivX,rivZ,carHalfW,carHalfL,-rt);
+        if(!post.hit||post.pen<=0.05)break;
+        var corr2=Math.max(0,post.pen-0.02)*0.5;
+        drift=Math.max(-1.05,Math.min(1.05,drift+post.nx*corr2/ROADH));
+        rivDrift=Math.max(-1.05,Math.min(1.05,rivDrift-post.nx*corr2/ROADH));
+        camZ=Math.max(0,camZ+post.nz*corr2);
+        rivZ=Math.max(0,rivZ-post.nz*corr2);
         sCar=camZ+CARD;
+        rivX=roadX(rivZ)+rivDrift*ROADH;
       }
 
       var rvx=pVX-rVX,rvz=pVZ-rVZ;
@@ -934,10 +1029,11 @@ function render(ms){
       rivDriftV=Math.max(-1.8,Math.min(1.8,rVX/ROADH));
       rivX=roadX(rivZ)+rivDrift*ROADH;
       if(bumpT<=0&&pen>0.8){
+        var side=Math.abs(nx)>Math.abs(nz);
         var hardHit=impact>5;
-        bumpMag=hardHit?Math.min(1,Math.max(axisX?.25:.16,impact/900)):.10;
+        bumpMag=hardHit?Math.min(1,Math.max(side?.25:.16,impact/900)):.10;
         bumpT=hardHit?.32:.18;
-        sparkRequest={side:axisX,nx:nx,nz:nz,mag:bumpMag};
+        sparkRequest={side:side,nx:nx,nz:nz,mag:bumpMag,x:hit.x,z:hit.z};
         SFX.bump(bumpMag);
       }
     }
@@ -954,16 +1050,14 @@ function render(ms){
   var HZY=HZ+shake;
 
   if(sparkRequest){
-    var playerSX=RW*0.5+(carX-camX)*FOC/CARD;
-    var sx=playerSX,sy=RH*0.80-2,rv=rivalProjection(HZY,camX);
-    if(rv){
-      /* Between the cars, not at the position the rival was shoved to after
-         the overlap was resolved. */
-      sx=(playerSX+rv.x)*0.5;
-      if(sparkRequest.side)sy=RH*0.80-CARW*0.32;
-      else if(rv.y<RH*0.80)sy=(rv.y+(RH*0.80-CARW*0.79))*0.5;
-      else sy=(rv.y+RH*0.80)*0.5;
-    }else if(sparkRequest.side)sy-=CARW*0.32;
+    /* Put the chips at the actual body-to-body contact point, not at the
+       centre of the player's car. */
+    var sparkZ=Math.max(40,sparkRequest.z-camZ);
+    var sparkSc=Math.min(1.15,CARD/sparkZ);
+    var sx=RW*0.5+(sparkRequest.x-camX)*FOC/sparkZ;
+    var sy=HZY+FOC*CAMH/sparkZ-CARW*(sparkRequest.side?.31:.09)*sparkSc;
+    if(sy<2)sy=2;
+    if(sx<-20)sx=-20;if(sx>RW+20)sx=RW+20;
     addSparks(sx,sy,sparkRequest.side,sparkRequest.nx,sparkRequest.mag);
     sparkRequest=null;
   }
@@ -1069,6 +1163,8 @@ function render(ms){
     sg.fillStyle='rgba(228,231,234,'+p.a.toFixed(2)+')';
     sg.fillRect(Math.round(p.x-p.r),Math.round(p.y-p.r),Math.round(p.r*2),Math.round(p.r*2));
   }
+
+  drawFumes(dt,HZY,carX);
 
   /* The player's car is always the foreground layer. A rival that has just
      dropped behind slides under it and off the bottom instead of popping. */
