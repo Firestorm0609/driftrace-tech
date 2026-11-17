@@ -580,7 +580,7 @@ var skids=[],skidTick=0;
 var MAXSPD=1500,REVSPD=120,RUNLEN=48000,RUNTIME=60,HUDTOP=700;
 var mode='idle',runT=0,runEnd=0,finishZ=0,braking=false,raceWon=false;
 var countT=0,countStep=0,startFlash=0,bumpT=0,bumpMag=0;
-var camKickX=0,scrapeT=0,scrapeTick=0,scrapeX=0,scrapeZ=0,scrapeNx=0,scrapeNz=0,scrapeMag=0,scrapePan=0,scrapeDamageT=0;
+var camKickX=0,scrapeT=0,scrapeTick=0,scrapeX=0,scrapeZ=0,scrapeNx=0,scrapeNz=0,scrapeMag=0,scrapePan=0,scrapeDamageT=0,scrapeBodyContact=false;
 var pDamage=[],rDamage=[],damageSmoke=[],nextDamageSmoke=0;
 var dmgFlash=0,runTopSpd=0,finishKind='';
 var misfireT=0,misfireCut=0,misfirePuff=false,impactJolt=0;
@@ -658,7 +658,7 @@ function startRun(){
   rivZ=runStartZ;rivSpd=0;rivDrift=0.58;rivSteer=0;rivBrake=false;rivDone=false;rivT=0;rivPlan=0;
   rivX=roadX(rivZ)+rivDrift*ROADH;
   bumpT=0;bumpMag=0;driftV=0;rivDriftV=0;
-  camKickX=0;scrapeT=0;scrapeTick=0;scrapeDamageT=0;
+  camKickX=0;scrapeT=0;scrapeTick=0;scrapeDamageT=0;scrapeBodyContact=false;
   pDamage=[];rDamage=[];damageSmoke=[];nextDamageSmoke=0;
   smoke=[];sparks=[];STK.length=0;nextPuff=0;fumes=[];nextFume=0;
   skids=[];skidTick=0;nextRivalPuff=0;
@@ -1079,6 +1079,57 @@ function boxContact(ax,az,ahw,ahl,ath,bx,bz,bhw,bhl,bth){
   return{hit:true,pen:best,nx:bnx,nz:bnz,x:(pa.x+pb.x)*0.5,z:(pa.z+pb.z)*0.5};
 }
 
+/* The physics box is rectangular, but the drawn car narrows toward its
+   nose. On a diagonal the boxes can meet while there is still clear air
+   between the pixels. Project the drawn body outlines and require those
+   to touch too, so feedback and the shove only happen at visible contact. */
+function carHull(x,y,sc,tilt){
+  var W=CARW*0.5*sc,out=[],i,c=Math.cos(tilt),s=Math.sin(tilt);
+  var shape=[[-W*1.19,0],[W*1.19,0],[W*1.19,-CARW*0.18*sc],
+    [W*0.90,-CARW*0.64*sc],[W*0.68,-CARW*0.79*sc],
+    [-W*0.68,-CARW*0.79*sc],[-W*0.90,-CARW*0.64*sc],[-W*1.19,-CARW*0.18*sc]];
+  for(i=0;i<shape.length;i++){
+    var px=shape[i][0],py=shape[i][1];
+    out.push({x:x+px*c-py*s,y:y+px*s+py*c});
+  }
+  return out;
+}
+function hullsTouch(a,b,pad){
+  var polys=[a,b],i,j,k;
+  for(i=0;i<2;i++){
+    var p=polys[i];
+    for(j=0;j<p.length;j++){
+      var q=p[(j+1)%p.length],ex=q.x-p[j].x,ey=q.y-p[j].y;
+      var len=Math.sqrt(ex*ex+ey*ey);
+      if(len<0.0001)continue;
+      var nx=-ey/len,ny=ex/len,amin=1e9,amax=-1e9,bmin=1e9,bmax=-1e9;
+      for(k=0;k<a.length;k++){
+        var av=a[k].x*nx+a[k].y*ny;if(av<amin)amin=av;if(av>amax)amax=av;
+      }
+      for(k=0;k<b.length;k++){
+        var bv=b[k].x*nx+b[k].y*ny;if(bv<bmin)bmin=bv;if(bv>bmax)bmax=bv;
+      }
+      if(amax+pad<bmin||bmax+pad<amin)return false;
+    }
+  }
+  return true;
+}
+function visibleBodiesTouch(playerTilt,rivalTilt,pad){
+  var sCar=camZ+CARD;
+  var visX=roadX(camZ)+0.90*(roadX(sCar)-roadX(camZ))+camKickX;
+  var playerX=RW*0.5+(roadX(sCar)+drift*ROADH-visX)*FOC/CARD;
+  var rv=rivalProjection(HZ,visX);
+  /* A rival outside the frame is handled by the physical box alone. */
+  if(!rv)return true;
+  var rivalHull=carHull(rv.x,rv.y,rv.sc,rivalTilt),i,onScreen=false;
+  for(i=0;i<rivalHull.length;i++){
+    var p=rivalHull[i];
+    if(p.x>-3&&p.x<RW+3&&p.y>-3&&p.y<RH+3){onScreen=true;break;}
+  }
+  if(!onScreen)return true;
+  return hullsTouch(carHull(playerX,RH*0.80,1,playerTilt),rivalHull,pad);
+}
+
 /* ── EXHAUST FUMES ──
    Small grey puffs leave the tail pipes, drift toward the camera at speed,
    and rise while the cars idle on the grid. */
@@ -1327,7 +1378,7 @@ function render(ms){
     rivX=roadX(rivZ)+rivDrift*ROADH;
     var hit=boxContact(playerWorldX,sCar,carHalfW,carHalfL,-playerTilt,
                        rivX,rivZ,carHalfW,carHalfL,-rivalTilt);
-    if(hit.hit){
+    if(hit.hit&&visibleBodiesTouch(playerTilt,rivalTilt,1.4)){
       var nx=hit.nx,nz=hit.nz,pen=hit.pen;
 
       /* Velocities before position correction, so the correction itself
@@ -1393,6 +1444,7 @@ function render(ms){
         sparkRequest={side:side,nx:nx,nz:nz,mag:bumpMag,x:hit.x,z:hit.z};
         camKickX=Math.max(-18,Math.min(18,-nx*((hardHit?7:3)+10*bumpMag)));
         SFX.bump(bumpMag,pan);
+        scrapeBodyContact=true;
         if(bumpMag>.18||impact>30){
           addBodyDamage(pDamage,-nx,-nz,bumpMag);
           addBodyDamage(rDamage,nx,nz,bumpMag);
@@ -1413,9 +1465,14 @@ function render(ms){
     var srx=roadX(rivZ)+rivDrift*ROADH;
     var near=boxContact(spx,sCar,carHalfW+2.2,carHalfL+2.2,-st,
                         srx,rivZ,carHalfW+2.2,carHalfL+2.2,-rt);
-    if(near.hit&&Math.abs(near.nx)>Math.abs(near.nz))nearSide=near;
+    /* Once a real hit is underway, keep the scrape alive through the small
+       gap opened by separating the boxes; never use that grace before the
+       bodies have visibly met. */
+    if(near.hit&&Math.abs(near.nx)>Math.abs(near.nz)&&
+       (scrapeBodyContact||visibleBodiesTouch(st,rt,1.4)))nearSide=near;
   }
   if(nearSide){
+    scrapeBodyContact=true;
     if(scrapeT<=0)scrapeTick=0;
     scrapeT=.06;
     scrapeX=nearSide.x;scrapeZ=nearSide.z;
@@ -1423,7 +1480,7 @@ function render(ms){
     scrapeMag=Math.max(.16,Math.min(.55,.16+.55*bumpMag));
     scrapePan=Math.max(-.9,Math.min(.9,-nearSide.nx));
   }else{
-    scrapeT=0;
+    scrapeT=0;scrapeBodyContact=false;
   }
   scrapeDamageT=Math.max(0,scrapeDamageT-dt);
   if(scrapeT>0){
