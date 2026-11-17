@@ -599,7 +599,7 @@ $('testBtn').onclick=function(){
         await sleep(800+Math.random()*600);
         var driver=rand(0,9);
         var amt=(Math.random()*.05+.005).toFixed(4);
-        $('pool').textContent=(Number($('pool').textContent)+Number(amt)).toFixed(4)+' ETH';
+        $('pool').textContent=(parseFloat($('pool').textContent||'0')+Number(amt)).toFixed(4)+' ETH';
         SFX.bet();
         agentSay('test bet: '+amt+' ETH \u2192 '+D[driver]+'.',true);
         for(var i=0;i<10;i++)try{$('bc'+i).textContent=rand(0,3)+' bets';}catch(e){}
@@ -639,7 +639,7 @@ $('testBtn').onclick=function(){
       $('raceStatus').textContent='SETTLED';
       $('win').textContent=D[winnerIdx];
       $('win').style.color=DC[winnerIdx].fill;
-      var pool=Number($('pool').textContent);
+      var pool=parseFloat($('pool').textContent)||0;
       SFX.settle();
 
       wins[winnerIdx]++;totalRaces++;
@@ -696,11 +696,20 @@ async function connect(){
 }
 $('walletBtn').onclick=connect;
 
-async function readContract(){if(contract)return contract;var p=new ethers.JsonRpcProvider(CHAIN.rpcUrls[0]);return new ethers.Contract(CONTRACT,ABI,p)}
+/* One shared read-only provider. A fresh JsonRpcProvider per poll left its
+   network-detection loop running and froze the page ~2s after load. */
+var rpcProvider=null;
+function getRpc(){
+  if(!rpcProvider){rpcProvider=new ethers.JsonRpcProvider(CHAIN.rpcUrls[0],undefined,{staticNetwork:true,batchMaxCount:1});rpcProvider.pollingInterval=15000}
+  return rpcProvider;
+}
+async function readContract(){if(contract)return contract;return new ethers.Contract(CONTRACT,ABI,getRpc())}
 
 /* ── POLL ── */
+var polling=false;
 async function poll(){
-  if(testRunning)return;
+  if(testRunning||polling)return;
+  polling=true;
   try{
     var c=await readContract(),cid=Number(await c.currentRaceId());
     if(!cid)return;rid=cid-1;
@@ -734,7 +743,7 @@ async function poll(){
       wins[lastWinner]++;totalRaces++;addHistory(rid,lastWinner,pool);updateLeaderboard();
       flashEvent(D[lastWinner]+' wins race #'+rid+'!');SFX.win();
     }
-  }catch(e){console.error('Poll error:',e)}
+  }catch(e){console.error('Poll error:',e)}finally{polling=false}
 }
 
 /* ── BET ── */
