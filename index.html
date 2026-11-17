@@ -771,6 +771,7 @@ function render(ms){
   var dt=Math.min(.05,(ms-(render.last||ms))/1000);render.last=ms;
 
   var sCar=camZ+CARD,drift0=drift,rivDrift0=rivDrift;
+  var carWorldW=CARW*CARD/FOC,hitX=carWorldW*1.06;
   /* how hard the road is bending under the car right now */
   var bendN=Math.max(-1,Math.min(1,(roadX(sCar+170)-roadX(sCar-170))/620));
   offRoad=Math.abs(drift)>ONG;
@@ -835,11 +836,17 @@ function render(ms){
     rivBrake=rivSpd>rTarget+2;
     rivZ+=rivSpd*dt;
     var rLane=-rb*0.35+0.12,along=rivZ-sCar;
-    if(along<520&&along>-300&&(SPD>rivSpd+50||rivPlan)){
-      if(!rivPlan){
-        var pOff=drift*ROADH;
-        rivPlan=pOff>8?-1:(pOff<-8?1:(rivDrift>=0?1:-1));
-      }
+    var pOff=drift*ROADH,rOff=rivDrift*ROADH;
+    /* Do not jump out of the way while someone is lined up directly behind:
+       that made a straight rear-end impossible to land. It still yields once
+       the player is alongside or has pulled out to pass. */
+    var centeredBehind=along>0&&along<520&&Math.abs(pOff-rOff)<hitX*0.62;
+    if(centeredBehind){
+      /* Hold the line for a car tucked directly behind. Jumping to the
+         escape lane here made a rear-end impossible to land. */
+      rLane=rivDrift;rivPlan=0;
+    }else if(along<520&&along>-300&&(SPD>rivSpd+50||rivPlan)){
+      if(!rivPlan)rivPlan=pOff>8?-1:(pOff<-8?1:(rivDrift>=0?1:-1));
       rLane=rivPlan>0?Math.max(rLane,0.65):Math.min(rLane,-0.65);
     }else rivPlan=0;
     rLane=Math.max(-0.65,Math.min(0.65,rLane));
@@ -861,6 +868,9 @@ function render(ms){
   gearJolt=Math.max(0,gearJolt-dt*5.5);
   shiftCut=Math.max(0,shiftCut-dt);
 
+  var spdK=Math.max(0,Math.min(1,(Math.abs(SPD)-140)/(MAXSPD-140)));
+  CAMH=520-56*spdK*spdK-5*gearJolt;
+
   camZ+=SPD*dt;
   if(camZ<0){camZ=0;if(SPD<0)SPD=0;}
   sCar=camZ+CARD;
@@ -871,16 +881,23 @@ function render(ms){
      rear hit shoves the rival forward; a side hit knocks both off line. */
   if(mode!=='idle'&&mode!=='countdown'){
     var ddx=(rivDrift-drift)*ROADH,ddz=rivZ-sCar;
-    /* Match the drawn sprite: its full wing width and the projected height
-       that separates two near-field cars vertically. */
-    var carWorldW=CARW*CARD/FOC,hitX=carWorldW*1.06,hitZ=carWorldW*1.80;
+    /* The camera drops as speed rises, compressing vertical perspective. A
+       fixed depth box then resolved a visible gap before the bumpers met.
+       Compute the depth at which the rival's rear touches the player's roof
+       for the camera height being used this frame. */
+    var contactZ=FOC*CAMH/Math.max(40,RH*0.80-CARW*0.79-HZ)-CARD;
+    var hitZ=Math.max(carWorldW*0.86,Math.min(carWorldW*1.80,contactZ));
     if(Math.abs(ddx)<hitX&&Math.abs(ddz)<hitZ){
       var penX=hitX-Math.abs(ddx),penZ=hitZ-Math.abs(ddz);
       /* Resolve by the cars' alignment, not the shortest overlap. A direct
          rear-end can have a huge x overlap at the same time, and choosing
          that axis used to shove the cars sideways and let the player
          continue through the rival. */
-      var sideHit=Math.abs(ddx)>=hitX*0.55,nx=ddx>=0?1:-1,nz=ddz>=0?1:-1,closing=0;
+      /* A car that is clearly ahead/behind is still a rear hit even when the
+         rival is partly off-line. Only use the lateral response when the two
+         cars are genuinely alongside each other. */
+      var rearZone=Math.abs(ddz)>=hitZ*0.55;
+      var sideHit=!rearZone&&Math.abs(ddx)>=hitX*0.55,nx=ddx>=0?1:-1,nz=ddz>=0?1:-1,closing=0;
       if(sideHit){
         var pLat=(drift-drift0)/Math.max(dt,0.001)*ROADH;
         var rLat=(rivDrift-rivDrift0)/Math.max(dt,0.001)*ROADH;
@@ -911,7 +928,7 @@ function render(ms){
         }
       }
       rivX=roadX(rivZ)+rivDrift*ROADH;
-      if(bumpT<=0){
+      if(bumpT<=0&&Math.max(penX,penZ)>1.2){
         var hardHit=closing>4;
         bumpMag=hardHit?Math.min(1,Math.max(sideHit?.25:.16,closing/(sideHit?240:760))):.10;
         bumpT=hardHit?.32:.18;
@@ -931,11 +948,9 @@ function render(ms){
   var carX=roadX(sCar)+drift*ROADH;
 
   /* SPEED CUES: the camera drops onto the tarmac as you wind it up, and
-     starts to buzz at the top end. HZY is this frame's shaken horizon. */
-  var spdK=Math.max(0,Math.min(1,(Math.abs(SPD)-140)/(MAXSPD-140)));
-  CAMH=520-72*spdK*spdK-9*gearJolt;
-  var shake=spdK>0.5?Math.round((Math.random()*2-1)*2.0*(spdK-0.5)/0.5):0;
-  if(bumpT>0)shake+=Math.round((Math.random()*2-1)*(1.2+2.8*bumpMag)*(bumpT/.32));
+     buzzes gently at the top end. HZY is this frame's shaken horizon. */
+  var shake=spdK>0.5?Math.round((Math.random()*2-1)*0.9*(spdK-0.5)/0.5):0;
+  if(bumpT>0)shake+=Math.round((Math.random()*2-1)*(0.8+1.7*bumpMag)*(bumpT/.32));
   var HZY=HZ+shake;
 
   if(sparkRequest){
@@ -1059,7 +1074,7 @@ function render(ms){
      dropped behind slides under it and off the bottom instead of popping. */
   var rzDraw=rivZ-camZ,showRival=(mode!=='idle');
   if(showRival&&rzDraw>=40)drawRival(HZY,camX);
-  drawCar(RW*0.5+(carX-camX)*FOC/CARD,Math.round(RH*0.80)+Math.sin(ms/72)*(0.35+1.15*spdK)*Math.min(1,Math.abs(SPD)/260),drift*0.13+steerV*0.05+driftV*0.06);
+  drawCar(RW*0.5+(carX-camX)*FOC/CARD,Math.round(RH*0.80)+Math.sin(ms/104)*(0.18+0.55*spdK)*Math.min(1,Math.abs(SPD)/260),drift*0.13+steerV*0.05+driftV*0.06);
   drawSparks(dt);
 
   engineUpdate();
