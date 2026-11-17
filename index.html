@@ -697,11 +697,12 @@ function drawStreaks(dt,spdK,HZY){
 }
 
 /* the rival, projected from its own place on the road instead of the
-   fixed car row, so it grows as you catch it and shrinks as it pulls away */
+   fixed car row, so it grows as you catch it and shrinks as it pulls away.
+   A just-passed rival is still drawn under the player and leaves through
+   the bottom of the frame; culling it at the player's row made it vanish
+   while it was still alongside. */
 function drawRival(HZY,visX){
-  if(mode!=='run'&&mode!=='countdown')return;
   var rz=rivZ-camZ;
-  if(rivZ<camZ+CARD-10)return;   /* the chase camera does not see a car it has passed */
   if(rz<40||rz>14000)return;
   var raw=Math.min(1,CARD/rz);
   /* Cars racing together stay the same size; only a car clearly up the
@@ -823,9 +824,9 @@ function render(ms){
   /* car-to-car contact: split the positional correction between the two
      cars, then exchange their closing speed through a damped impact. A
      rear hit shoves the rival forward; a side hit knocks both off line. */
-  if(mode==='run'){
+  if(mode!=='idle'&&mode!=='countdown'){
     var ddx=(rivDrift-drift)*ROADH,ddz=rivZ-sCar;
-    var carWorldW=CARW*CARD/FOC,hitX=carWorldW*0.92,hitZ=carWorldW*1.02;
+    var carWorldW=CARW*CARD/FOC,hitX=carWorldW,hitZ=carWorldW*1.06;
     if(Math.abs(ddx)<hitX&&Math.abs(ddz)<hitZ){
       var penX=hitX-Math.abs(ddx),penZ=hitZ-Math.abs(ddz);
       var sideHit=penX<penZ,nx=ddx>=0?1:-1,nz=ddz>=0?1:-1,closing=0;
@@ -986,10 +987,11 @@ function render(ms){
     sg.fillRect(Math.round(p.x-p.r),Math.round(p.y-p.r),Math.round(p.r*2),Math.round(p.r*2));
   }
 
-  var rzDraw=rivZ-camZ,showRival=(mode==='run'||mode==='countdown');
-  if(showRival&&rzDraw>CARD)drawRival(HZY,camX);
+  /* The player's car is always the foreground layer. A rival that has just
+     dropped behind slides under it and off the bottom instead of popping. */
+  var rzDraw=rivZ-camZ,showRival=(mode!=='idle');
+  if(showRival&&rzDraw>=40)drawRival(HZY,camX);
   drawCar(RW*0.5+(carX-camX)*FOC/CARD,Math.round(RH*0.80)+Math.sin(ms/72)*(0.35+1.15*spdK)*Math.min(1,Math.abs(SPD)/260),drift*0.13+steerV*0.05+driftV*0.06);
-  if(showRival&&rzDraw>=40&&rzDraw<=CARD)drawRival(HZY,camX);
 
   engineUpdate();
   drawHud();
