@@ -303,6 +303,7 @@ var SFX={
   bet:function(){beep(880,.08,'square',.1);setTimeout(function(){beep(1100,.06,'square',.08)},60)},
   raceStart:function(){[440,550,660,880].forEach(function(f,i){setTimeout(function(){beep(f,.12,'sawtooth',.08)},i*80)})},
   count:function(){beep(560,.09,'square',.09)},
+  bump:function(){beep(110,.10,'square',.14);setTimeout(function(){beep(80,.09,'square',.10)},35)},
   racing:function(){beep(120,.3,'sawtooth',.04)},
   settle:function(){beep(660,.15,'sine',.12);setTimeout(function(){beep(880,.15,'sine',.1)},120);setTimeout(function(){beep(1100,.2,'sine',.08)},240)},
   win:function(){[523,659,784,1047].forEach(function(f,i){setTimeout(function(){beep(f,.18,'sine',.12)},i*100)})},
@@ -464,9 +465,9 @@ var smoke=[],nextPuff=0;
    wheel has to earn the line back while the red car holds its own pace. */
 var MAXSPD=1500,REVSPD=120,RUNLEN=48000,RUNTIME=60,HUDTOP=700;
 var mode='idle',runT=0,runEnd=0,finishZ=0,braking=false,raceWon=false;
-var countT=0,countStep=0,startFlash=0;
+var countT=0,countStep=0,startFlash=0,bumpT=0;
 var runStartZ=0;
-var rivZ=0,rivX=0,rivSpd=60,rivDrift=0.28,rivSteer=0,rivBrake=false,rivDone=false,rivT=0;
+var rivZ=0,rivX=0,rivSpd=60,rivDrift=0.28,rivSteer=0,rivBrake=false,rivDone=false,rivT=0,rivPlan=0;
 var keys={l:0,r:0,u:0,d:0},steerV=0,offRoad=false;
 var ONG=0.63;   /* drift past this and a wheel is on the grass */
 
@@ -525,8 +526,9 @@ function startRun(){
   gearNow=gearAt(SPD/MAXSPD).g;gearJolt=0;shiftCut=0;
   runStartZ=camZ+CARD;
   finishZ=runStartZ+RUNLEN;   /* measured from the car, so the bar starts at zero */
-  rivZ=runStartZ+140;rivSpd=0;rivDrift=0.28;rivSteer=0;rivBrake=false;rivDone=false;rivT=0;
+  rivZ=runStartZ+140;rivSpd=0;rivDrift=0.28;rivSteer=0;rivBrake=false;rivDone=false;rivT=0;rivPlan=0;
   rivX=roadX(rivZ)+rivDrift*ROADH;
+  bumpT=0;
   smoke=[];STK.length=0;nextPuff=0;
   engineStart();
   SFX.count();
@@ -681,6 +683,7 @@ function drawStreaks(dt,spdK,HZY){
 function drawRival(HZY,visX){
   if(mode!=='run'&&mode!=='countdown')return;
   var rz=rivZ-camZ;
+  if(rivZ<camZ+CARD-30)return;   /* the chase camera does not see a car it has passed */
   if(rz<40||rz>14000)return;
   var sc=CARD/rz;
   var x=RW*0.5+(rivX-visX)*FOC/rz;
@@ -761,9 +764,15 @@ function render(ms){
     else rivSpd=Math.max(rTarget,rivSpd-300*dt);
     rivBrake=rivSpd>rTarget+2;
     rivZ+=rivSpd*dt;
-    var rLane=-rb*0.35+0.12;
-    if(sCar<rivZ&&rivZ-sCar<700)rLane+=0.38;
-    rLane=Math.max(-0.58,Math.min(0.58,rLane));
+    var rLane=-rb*0.35+0.12,along=rivZ-sCar;
+    if(along<520&&along>-300&&(SPD>rivSpd+50||rivPlan)){
+      if(!rivPlan){
+        var pOff=drift*ROADH;
+        rivPlan=pOff>8?-1:(pOff<-8?1:(rivDrift>=0?1:-1));
+      }
+      rLane=rivPlan>0?Math.max(rLane,0.65):Math.min(rLane,-0.65);
+    }else rivPlan=0;
+    rLane=Math.max(-0.65,Math.min(0.65,rLane));
     var rPrev=rivDrift;
     rivDrift+=(rLane-rivDrift)*(1-Math.exp(-dt*2.2));
     rivSteer=Math.max(-0.7,Math.min(0.7,(rivDrift-rPrev)/Math.max(dt,0.001)*0.7-rb*0.25));
@@ -782,6 +791,36 @@ function render(ms){
 
   camZ+=SPD*dt;
   if(camZ<0){camZ=0;if(SPD<0)SPD=0;}
+  sCar=camZ+CARD;
+
+  /* car-to-car contact: resolve the smaller overlap first, so a rear-end
+     scrubs speed while a side scrape shoves you back onto your own line */
+  if(mode==='run'){
+    var ddx=(rivDrift-drift)*ROADH,ddz=rivZ-sCar;
+    var carWorldW=CARW*CARD/FOC,hitX=carWorldW*0.90,hitZ=carWorldW*1.02;
+    if(Math.abs(ddx)<hitX&&Math.abs(ddz)<hitZ){
+      var penX=hitX-Math.abs(ddx),penZ=hitZ-Math.abs(ddz);
+      if(penX<penZ){
+        var away=ddx>0?-1:1;
+        drift=Math.max(-1.05,Math.min(1.05,rivDrift+away*(hitX+2)/ROADH));
+        SPD*=0.94;
+      }else if(ddz>0){
+        camZ=rivZ-hitZ-CARD;
+        if(camZ<0)camZ=0;
+        sCar=camZ+CARD;
+        SPD=Math.min(SPD,rivSpd*0.82);
+      }else{
+        rivZ=sCar-hitZ;
+        if(rivZ<0)rivZ=0;
+        rivSpd=Math.min(rivSpd,SPD*0.82);
+        rivX=roadX(rivZ)+rivDrift*ROADH;
+      }
+      if(bumpT<=0)SFX.bump();
+      bumpT=.30;
+    }
+  }
+  bumpT=Math.max(0,bumpT-dt);
+
   camX=roadX(camZ)+0.90*(roadX(sCar)-roadX(camZ));
   var carX=roadX(sCar)+drift*ROADH;
 
@@ -790,6 +829,7 @@ function render(ms){
   var spdK=Math.max(0,Math.min(1,(Math.abs(SPD)-140)/(MAXSPD-140)));
   CAMH=520-72*spdK*spdK-9*gearJolt;
   var shake=spdK>0.5?Math.round((Math.random()*2-1)*2.0*(spdK-0.5)/0.5):0;
+  if(bumpT>0)shake+=Math.round((Math.random()*2-1)*3.0*(bumpT/.30));
   var HZY=HZ+shake;
 
   var y,z,s,i;
