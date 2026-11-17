@@ -476,7 +476,7 @@ var ASPH=(function(){
 })();
 
 var camZ=0,camX=roadX(0),drift=0,driftV=0;
-var smoke=[],nextPuff=0;
+var smoke=[],nextPuff=0,sparks=[];
 
 /* ── MANUAL RUN ──
    You against one rival. The bend pushes both cars toward the grass; the
@@ -547,7 +547,7 @@ function startRun(){
   rivZ=runStartZ+30;rivSpd=0;rivDrift=0.65;rivSteer=0;rivBrake=false;rivDone=false;rivT=0;rivPlan=1;
   rivX=roadX(rivZ)+rivDrift*ROADH;
   bumpT=0;bumpMag=0;driftV=0;rivDriftV=0;
-  smoke=[];STK.length=0;nextPuff=0;
+  smoke=[];sparks=[];STK.length=0;nextPuff=0;
   engineStart();
   SFX.count();
 }
@@ -701,9 +701,9 @@ function drawStreaks(dt,spdK,HZY){
    A just-passed rival is still drawn under the player and leaves through
    the bottom of the frame; culling it at the player's row made it vanish
    while it was still alongside. */
-function drawRival(HZY,visX){
+function rivalProjection(HZY,visX){
   var rz=rivZ-camZ;
-  if(rz<40||rz>14000)return;
+  if(rz<40||rz>14000)return null;
   var raw=Math.min(1,CARD/rz);
   /* Cars racing together stay the same size; only a car clearly up the
      road takes the perspective shrink. This also caps a passed rival. */
@@ -718,13 +718,52 @@ function drawRival(HZY,visX){
   var y=HZY+FOC*CAMH/rz;
   var side=Math.max(0,1-Math.abs(rz-CARD)/80);
   y+=(RH*0.80-y)*side;   /* side by side means the same road baseline */
-  if(y>RH+70||x<-RW*0.8||x>RW*1.8)return;
+  if(y>RH+70||x<-RW*0.8||x>RW*1.8)return null;
+  return {x:x,y:y,sc:sc,rz:rz};
+}
+function drawRival(HZY,visX){
+  var v=rivalProjection(HZY,visX);
+  if(!v)return;
   carPal=CARP.rival;
   sg.save();
-  sg.translate(x,y);sg.scale(sc,sc);
+  sg.translate(v.x,v.y);sg.scale(v.sc,v.sc);
   drawCar(0,0,rivDrift*0.13+rivSteer*0.05+rivDriftV*0.06,rivBrake);
   sg.restore();
   carPal=CARP.player;
+}
+
+/* metal-on-metal: short bright chips thrown from the contact patch */
+function addSparks(x,y,side,dir,mag){
+  var n=Math.round(9+18*mag),i;
+  for(i=0;i<n;i++){
+    sparks.push({
+      x:x+(Math.random()*4-2),y:y+(Math.random()*4-2),
+      vx:(Math.random()*2-1)*(55+150*mag)+(side?dir*(35+90*Math.random()):0),
+      vy:-(35+Math.random()*150)*(0.65+0.65*mag),
+      life:0.18+Math.random()*0.28,
+      w:Math.random()<0.22?2:1,
+      col:Math.random()<0.2?'#fff8d4':(Math.random()<0.55?'#ffd23f':'#ff8a2a')
+    });
+  }
+  if(sparks.length>120)sparks.splice(0,sparks.length-120);
+}
+function drawSparks(dt){
+  if(!sparks.length)return;
+  var i,s,a;
+  for(i=sparks.length-1;i>=0;i--){
+    s=sparks[i];
+    s.vy+=420*dt;
+    s.vx*=Math.pow(0.35,dt);
+    s.x+=s.vx*dt;s.y+=s.vy*dt;s.life-=dt;
+    if(s.life<=0||s.y>RH+10){sparks.splice(i,1);continue}
+    a=Math.min(1,s.life*6);
+    sg.globalAlpha=a;
+    sg.fillStyle=s.col;
+    sg.fillRect(Math.round(s.x),Math.round(s.y),s.w,Math.max(1,Math.round(s.w*.6)));
+    sg.globalAlpha=a*.45;
+    sg.fillRect(Math.round(s.x-s.vx*.012),Math.round(s.y-s.vy*.012),1,1);
+  }
+  sg.globalAlpha=1;
 }
 
 function render(ms){
@@ -825,6 +864,7 @@ function render(ms){
   camZ+=SPD*dt;
   if(camZ<0){camZ=0;if(SPD<0)SPD=0;}
   sCar=camZ+CARD;
+  var sparkRequest=null;
 
   /* car-to-car contact: split the positional correction between the two
      cars, then exchange their closing speed through a damped impact. A
@@ -879,6 +919,7 @@ function render(ms){
           rivSpd=Math.max(0,rivSpd*(1-scrape*0.65));
         }
         bumpT=.32;
+        sparkRequest={side:sideHit,nx:nx,nz:nz,mag:bumpMag};
         SFX.bump(bumpMag);
       }
     }
@@ -895,6 +936,20 @@ function render(ms){
   var shake=spdK>0.5?Math.round((Math.random()*2-1)*2.0*(spdK-0.5)/0.5):0;
   if(bumpT>0)shake+=Math.round((Math.random()*2-1)*(1.2+2.8*bumpMag)*(bumpT/.32));
   var HZY=HZ+shake;
+
+  if(sparkRequest){
+    var playerSX=RW*0.5+(carX-camX)*FOC/CARD;
+    var sx=playerSX,sy=RH*0.80-2,rv;
+    if(sparkRequest.side){
+      sx+=sparkRequest.nx*CARW*0.52;
+      sy-=CARW*0.34;
+    }else if(sparkRequest.nz>0){
+      rv=rivalProjection(HZY,camX);
+      if(rv){sx=rv.x;sy=rv.y-2;}
+    }
+    addSparks(sx,sy,sparkRequest.side,sparkRequest.nx,sparkRequest.mag);
+    sparkRequest=null;
+  }
 
   var y,z,s,i;
   for(y=0;y<RH;y++){
@@ -1003,6 +1058,7 @@ function render(ms){
   var rzDraw=rivZ-camZ,showRival=(mode!=='idle');
   if(showRival&&rzDraw>=40)drawRival(HZY,camX);
   drawCar(RW*0.5+(carX-camX)*FOC/CARD,Math.round(RH*0.80)+Math.sin(ms/72)*(0.35+1.15*spdK)*Math.min(1,Math.abs(SPD)/260),drift*0.13+steerV*0.05+driftV*0.06);
+  drawSparks(dt);
 
   engineUpdate();
   drawHud();
