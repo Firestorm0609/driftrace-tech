@@ -16,7 +16,7 @@
 <meta name="twitter:description" content="Autonomous AI racing on Robinhood Chain.">
 <link rel="canonical" href="https://driftrace.tech">
 <style>
-:root{--neon:#ccff00;--line:#789600;--dim:#425300;--bg:#000000}
+:root{--neon:#ccff00;--line:#789600;--dim:#425300;--bg:#000000;--top:28px}
 *{box-sizing:border-box}
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--neon);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 button,input,select{font:inherit;color:inherit;background:var(--bg);border:1px solid var(--line)}
@@ -29,7 +29,7 @@ button{cursor:pointer}
 .sound-btn{padding:3px 6px;font-size:6px;cursor:pointer;border:1px solid var(--line)}
 .sound-btn:hover{border-color:var(--neon)}
 .sound-btn.muted-sound{opacity:.4}
-.world{width:100vw;height:calc(100dvh - 28px);display:grid;grid-template-columns:minmax(118px,20vw) minmax(0,1fr);gap:4px;padding:4px}
+.world{width:100vw;height:calc(100dvh - var(--top));display:grid;grid-template-columns:minmax(118px,20vw) minmax(0,1fr);gap:4px;padding:4px}
 .hub{min-width:0;display:flex;flex-direction:column;gap:5px}
 .hubbox{width:100%;border:1px solid var(--line);padding:4px}
 .hubtitle{border:1px solid var(--line);padding:4px;text-align:center;font-size:12px;font-weight:900;letter-spacing:.08em}
@@ -158,25 +158,102 @@ body.theatre .theatre-hud{display:flex}
 body.theatre .top .muted,body.theatre .top .usd{display:none}
 .theatre-hud b{font-weight:700}
 .theatre-hud button{padding:2px 6px;font-size:7px}
-@media(max-width:600px){
+html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%}
+/* -- ON-SCREEN PAD --
+   Only shown where a thumb, not a keyboard, is driving. Each cluster owns
+   its own pointer so steering and throttle can be held together. */
+.touch{display:none;position:absolute;left:0;right:0;bottom:0;z-index:12;padding:0 10px calc(8px + env(safe-area-inset-bottom,0px));pointer-events:none;justify-content:space-between;align-items:flex-end;gap:10px}
+.touch-group{display:flex;gap:8px;pointer-events:auto;align-items:flex-end}
+.tc-btn{width:62px;height:62px;padding:0;border:1px solid var(--line);background:#000000c8;color:var(--neon);font-size:20px;font-weight:900;line-height:1;display:grid;place-items:center;border-radius:3px;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+.tc-btn.on{border-color:var(--neon);background:#ccff0029;color:#eaffb0}
+.tc-gas{width:80px;height:80px;font-size:12px;letter-spacing:.1em;border-color:var(--neon)}
+.tc-brake{width:52px;height:52px;font-size:10px;opacity:.9}
+@media (pointer:coarse),(max-width:820px){.touch{display:flex}}
+.hub-btn{display:none;position:fixed;right:8px;top:calc(var(--top) + 8px);z-index:45;padding:8px 11px;border:1px solid var(--line);background:#000000cc;color:var(--neon);font-size:10px;font-weight:900;letter-spacing:.1em;touch-action:manipulation}
+/* -- PHONES PORTRAIT: track on top, hub scrolls beneath -- */
+@media (max-width:760px){
+  :root{--top:44px}
+  .top{height:44px;padding:0 10px;gap:8px}
   .top .muted{display:none}
-  .world{grid-template-columns:106px minmax(0,1fr);gap:3px;padding:3px}
-  .hubbox{padding:3px}.hubtitle{font-size:10px;padding:3px}
-  .chat-bubble{font-size:4.5px;min-height:13px;padding:2px 3px}
-  .desk{gap:2px;padding-top:4px}.screen{width:27px;height:22px;font-size:4px}
-  .agent-svg{width:28px;height:44px}
-  .stats{font-size:4.3px}.row>*{font-size:4.2px;padding:2px 1px}.status{font-size:3.8px}
-  .test-btn{font-size:5px;padding:3px}
-  .rooms{gap:3px}.race-room{height:44px;padding:4px}.tier{font-size:9px}.roommeta{font-size:3.3px;left:5px;bottom:5px}
-  .history{max-height:70px}.leaderboard{max-height:90px}.hist-row,.lb-row{font-size:4px}
-  .trackside{grid-template-rows:32px 1fr}.lanehead{font-size:3px;padding:3px 0}.lanehead b{font-size:6px}
-  .car svg{width:14px;height:22px}.startline{top:23px}
-  .winner h1{font-size:20px}.winner-car{width:78px;height:151px}
+  .brand{font-size:13px;letter-spacing:.18em}
+  .wallet{padding:9px 11px;font-size:10px}
+  .sound-btn{padding:9px 11px;font-size:13px}
+  .world{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;gap:0;padding:0}
+  /* the hub comes first in the markup, so both rows are placed by hand */
+  .trackside{grid-row:1;grid-column:1;grid-template-rows:1fr;border:0;border-bottom:1px solid var(--line);min-height:0}
+  .hub{grid-row:2;grid-column:1;max-height:40dvh;overflow-y:auto;overscroll-behavior:contain;gap:8px;padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px))}
+  .hubbox{padding:8px}
+  .hubtitle{font-size:13px;padding:6px;letter-spacing:.1em}
+  .room{margin-top:0}
+  .chat-bubble{font-size:10px;min-height:0;line-height:1.4;padding:6px 8px;margin-bottom:0}
+  .chat-bubble:after{display:none}
+  .desk{display:none}
+  .stats{font-size:10px;gap:6px 10px;margin:0 0 8px}
+  .stats b{display:block;margin-top:2px}
+  .row{gap:6px;margin-top:6px}
+  .row>*{font-size:12px;padding:9px 8px;min-height:38px}
+  .status{margin-top:8px;font-size:9px;line-height:1.6}
+  .test-race{margin-top:8px;padding-top:8px}
+  .test-btn{font-size:11px;padding:11px}
+  .rooms{gap:8px;grid-template-columns:1fr 1fr;margin-top:8px}
+  .race-room{height:58px;padding:9px}
+  .race-room.active:after{font-size:7px;right:9px;top:9px}
+  .tier{font-size:16px}
+  .roommeta{font-size:8px;left:9px;bottom:9px}
+  .history{max-height:none;margin-top:0}
+  .leaderboard{max-height:none}
+  .hist-title,.lb-title{font-size:10px;margin-bottom:6px}
+  .hist-row,.lb-row{font-size:10px;padding:6px 0}
+  .lanehead{font-size:6px;padding:5px 0}
+  .lanehead b{font-size:9px}
+  .car svg{width:18px;height:30px}
+  .startline{top:26px}
+  .winner h1{font-size:24px}
+  .winner-car{width:86px;height:167px}
   #theatreBtn{display:none}
-  body.theatre .world{grid-template-columns:106px minmax(0,1fr)}
-  body.theatre .hub{display:flex}
-  body.theatre .car canvas{display:none}
+  body.theatre .world{grid-template-columns:minmax(0,1fr)}
   .theatre-hud{display:none!important}
+  .result-card{width:100%;padding:16px 14px 14px}
+  .result-title{font-size:clamp(30px,9vw,40px)}
+  .result-sub{font-size:10px;line-height:1.6}
+  .result-stat{padding:9px 10px;min-height:52px}
+  .result-stat span{font-size:8px}
+  .result-stat b{font-size:17px}
+  .result-damage .rd-label{font-size:8px}
+  .result-damage small{font-size:8px}
+  .result-damage-bar{width:110px;height:7px}
+  .result-again{font-size:12px;padding:14px 18px}
+  .result-hint{font-size:8px}
+}
+/* -- PHONES LANDSCAPE: full-bleed track, hub behind the HUB button -- */
+@media (max-height:560px) and (orientation:landscape){
+  :root{--top:40px}
+  .top{height:40px;padding:0 10px;gap:8px}
+  .top .muted,.top .usd{display:none}
+  .brand{font-size:12px}
+  .wallet{padding:7px 9px;font-size:9px}
+  .sound-btn{padding:7px 9px;font-size:12px}
+  .world{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:0;padding:0}
+  .trackside{grid-template-rows:1fr;border:0;min-height:0}
+  .hub{display:none;max-height:none;gap:8px;padding:10px calc(10px + env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) calc(10px + env(safe-area-inset-left,0px))}
+  body.hubopen .hub{display:flex;position:fixed;left:0;right:0;top:var(--top);bottom:0;z-index:40;background:#000;overflow-y:auto;overscroll-behavior:contain;border-top:1px solid var(--line)}
+  .hub-btn{display:block}
+  .hubtitle{font-size:12px}
+  .chat-bubble{font-size:10px;min-height:0;padding:6px 8px}
+  .chat-bubble:after{display:none}
+  .desk{display:none}
+  .stats{font-size:10px}
+  .row>*{font-size:11px;padding:8px;min-height:34px}
+  .status{font-size:9px}
+  .test-btn{font-size:10px;padding:9px}
+  .race-room{height:52px}
+  .tier{font-size:14px}
+  .roommeta{font-size:7px}
+  .hist-row,.lb-row,.hist-title,.lb-title{font-size:9px}
+  .tc-btn{width:56px;height:56px;font-size:18px}
+  .tc-gas{width:70px;height:70px;font-size:11px}
+  .tc-brake{width:50px;height:50px;font-size:9px}
+  .result-card{max-height:calc(100dvh - 16px);padding:12px 14px}
 }
 </style>
 </head>
@@ -267,8 +344,19 @@ body.theatre .top .muted,body.theatre .top .usd{display:none}
   </aside>
   <section class="trackside">
     <canvas id="scene"></canvas>
+    <div class="touch" id="touch">
+      <div class="touch-group">
+        <button class="tc-btn" type="button" data-k="l" aria-label="Steer left">&#9664;</button>
+        <button class="tc-btn" type="button" data-k="r" aria-label="Steer right">&#9654;</button>
+      </div>
+      <div class="touch-group">
+        <button class="tc-btn tc-brake" type="button" data-k="d" aria-label="Brake">BRK</button>
+        <button class="tc-btn tc-gas" type="button" data-k="u" aria-label="Accelerate">GAS</button>
+      </div>
+    </div>
   </section>
 </main>
+<button class="hub-btn" id="hubBtn" type="button">HUB</button>
 <div class="theatre-hud" id="theatreHud">
   <span><b id="thRace">#&mdash;</b></span><span id="thStatus">SYNC</span><span id="thPool">0 ETH</span><span id="thTimer">--:--</span>
   <button id="thExit">EXIT</button>
@@ -580,6 +668,9 @@ function sizeScene(){
 }
 sizeScene();
 if(window.addEventListener)window.addEventListener('resize',sizeScene);
+/* On a phone the hub grows or scrolls under the track, which resizes the
+   canvas cell without any window resize, so the backing store would stretch. */
+if(window.ResizeObserver&&SCV){try{new ResizeObserver(function(){sizeScene()}).observe(SCV)}catch(e){}}
 
 /* the racing line: road centre in world units, as a function of distance */
 function roadX(s){return Math.sin(s*0.00062)*760+Math.sin(s*0.00151+1.7)*210+Math.sin(s*0.0031+4.1)*64;}
@@ -616,6 +707,18 @@ var misfireT=0,misfireCut=0,misfirePuff=false,impactJolt=0;
 var runStartZ=0;
 var playerCar=null,rivalCar=null,cars=[];
 var keys={l:0,r:0,u:0,d:0},steerV=0,offRoad=false;
+var IS_TOUCH=false;
+try{IS_TOUCH=(window.matchMedia&&window.matchMedia('(pointer:coarse)').matches)||(navigator.maxTouchPoints||0)>0||('ontouchstart' in window)}catch(e){}
+/* The keyboard and the on-screen pad can be held at the same time, so each
+   source keeps its own bits and `keys` stays the merged view the physics,
+   the HUD and the network transport already read. */
+var keyHeld={l:0,r:0,u:0,d:0},touchHeld={l:0,r:0,u:0,d:0};
+function syncKeys(){
+  keys.l=(keyHeld.l||touchHeld.l)?1:0;
+  keys.r=(keyHeld.r||touchHeld.r)?1:0;
+  keys.u=(keyHeld.u||touchHeld.u)?1:0;
+  keys.d=(keyHeld.d||touchHeld.d)?1:0;
+}
 var ONG=0.63;   /* drift past this and a wheel is on the grass */
 
 /* Fixed simulation step and the two snapshots used to interpolate the
@@ -659,8 +762,8 @@ function drawHud(){
       shadeText('MULTIPLAYER '+MP_ROOM,RW*0.5,RH*0.42,'#eaf6d2','center');
       shadeText('WAITING FOR THE GRID',RW*0.5,RH*0.42+12,'#a9c98c','center');
     }else{
-      shadeText('PRESS ENTER TO DRIVE',RW*0.5,RH*0.42,'#eaf6d2','center');
-      shadeText('\u2190 \u2192 steer    \u2191 \u2193 speed',RW*0.5,RH*0.42+12,'#a9c98c','center');
+      shadeText(IS_TOUCH?'TAP GAS TO DRIVE':'PRESS ENTER TO DRIVE',RW*0.5,RH*0.42,'#eaf6d2','center');
+      shadeText(IS_TOUCH?'\u25c0 \u25b6 STEER   GAS / BRK':'\u2190 \u2192 steer    \u2191 \u2193 speed',RW*0.5,RH*0.42+12,'#a9c98c','center');
     }
     return;
   }
@@ -682,14 +785,14 @@ function drawHud(){
   sg.fillStyle='#ff4757';sg.fillRect(4+Math.round(pw*rp)-1,15,3,5);
   if(mode==='countdown'){
     bigText(String(Math.ceil(countT)),RH*0.33,'#eaf6d2');
-    shadeText('HOLD UP TO LAUNCH',RW*0.5,RH*0.33+22,'#a9c98c','center');
+    shadeText(IS_TOUCH?'HOLD GAS TO LAUNCH':'HOLD UP TO LAUNCH',RW*0.5,RH*0.33+22,'#a9c98c','center');
   }
   if(mode==='run'&&startFlash>0)bigText('START',RH*0.33,'#ccff00');
   if(mode==='run'&&left<5000)shadeText('FINISH AHEAD',RW*0.5,RH*0.24,'#ffffff','center');
   if(mode==='run'&&rivalCar.done)shadeText('RIVAL FINISHED',RW*0.5,36,'#ff6a4a','center');
   if(mode==='done')shadeText((raceWon?'P1  YOU WIN':'P2  RIVAL WINS')+'  '+fmtT(runEnd),RW*0.5,RH*0.40,raceWon?'#ccff00':'#ff7a3d','center');
   if(mode==='timeup')shadeText('TIME UP',RW*0.5,RH*0.40,'#ff7a3d','center');
-  if(mode==='done'||mode==='timeup')shadeText(MP_ROOM?'REMATCH INCOMING':'PRESS ENTER TO RUN AGAIN',RW*0.5,RH*0.40+13,'#a9c98c','center');
+  if(mode==='done'||mode==='timeup')shadeText(MP_ROOM?'REMATCH INCOMING':(IS_TOUCH?'TAP GAS TO RUN AGAIN':'PRESS ENTER TO RUN AGAIN'),RW*0.5,RH*0.40+13,'#a9c98c','center');
 }
 function startRun(opts){
   opts=opts||{};
@@ -1901,6 +2004,11 @@ function render(ms){
   drawRace(simAccum/FIXED_DT,ms,frameDt);
   engineUpdate();
   drawHud();
+  if(SCV){
+    if(SCV.dataset.mode!==mode)SCV.dataset.mode=mode;
+    var kmhNow=Math.round(SPD/MAXSPD*HUDTOP),kmhTxt=String(kmhNow);
+    if(SCV.dataset.kmh!==kmhTxt)SCV.dataset.kmh=kmhTxt;
+  }
   requestAnimationFrame(render);
 }
 if(sg)requestAnimationFrame(render);
@@ -1910,17 +2018,59 @@ if(sg)requestAnimationFrame(render);
 var keyMap={ArrowLeft:'l',KeyA:'l',ArrowRight:'r',KeyD:'r',ArrowUp:'u',KeyW:'u',ArrowDown:'d',KeyS:'d'};
 document.addEventListener('keydown',function(e){
   var k=keyMap[e.code];
-  if(k){keys[k]=1;e.preventDefault();return;}
+  if(k){keyHeld[k]=1;syncKeys();e.preventDefault();return;}
   if(e.code==='Enter'||e.code==='Space'){
     if(e.target&&e.target.tagName==='BUTTON')return;
     if(mode==='idle'||mode==='done'||mode==='timeup'){startRun();e.preventDefault();}
   }
 });
-document.addEventListener('keyup',function(e){var k=keyMap[e.code];if(k){keys[k]=0;e.preventDefault();}});
-window.addEventListener('blur',function(){keys.l=keys.r=keys.u=keys.d=0;steerV=0;});
-if(SCV&&window.matchMedia&&window.matchMedia('(pointer:fine)').matches){
+document.addEventListener('keyup',function(e){var k=keyMap[e.code];if(k){keyHeld[k]=0;syncKeys();e.preventDefault();}});
+function clearHeld(){
+  keyHeld.l=keyHeld.r=keyHeld.u=keyHeld.d=0;
+  touchHeld.l=touchHeld.r=touchHeld.u=touchHeld.d=0;
+  syncKeys();steerV=0;
+  var tb=document.querySelectorAll('.tc-btn');
+  for(var i=0;i<tb.length;i++)tb[i].classList.remove('on');
+}
+window.addEventListener('blur',clearHeld);
+window.addEventListener('pagehide',clearHeld);
+if(SCV){
+  SCV.style.touchAction='none';
   SCV.addEventListener('pointerdown',function(){if(mode==='idle'||mode==='done'||mode==='timeup')startRun();});
 }
+
+/* ── ON-SCREEN PAD ──
+   Each button captures its own pointer, so steer-left and gas can be held
+   together; the bits merge into the same `keys` object the keyboard uses. */
+(function(){
+  var pad=$('touch');if(!pad)return;
+  var btns=pad.querySelectorAll('.tc-btn'),i;
+  function setBit(btn,on){
+    touchHeld[btn.getAttribute('data-k')]=on?1:0;
+    syncKeys();btn.classList.toggle('on',!!on);
+  }
+  for(i=0;i<btns.length;i++)(function(btn){
+    btn.addEventListener('pointerdown',function(e){
+      e.preventDefault();e.stopPropagation();
+      if(mode==='idle'||mode==='done'||mode==='timeup')startRun();
+      try{btn.setPointerCapture(e.pointerId)}catch(err){}
+      setBit(btn,true);
+    });
+    function release(e){if(e){e.preventDefault();e.stopPropagation()}setBit(btn,false)}
+    btn.addEventListener('pointerup',release);
+    btn.addEventListener('pointercancel',release);
+    btn.addEventListener('lostpointercapture',release);
+    btn.addEventListener('contextmenu',function(e){e.preventDefault()});
+  })(btns[i]);
+  pad.addEventListener('pointerdown',function(e){if(e.target===pad)e.preventDefault()});
+})();
+
+var hubBtn=$('hubBtn');
+if(hubBtn)hubBtn.onclick=function(){
+  var open=document.body.classList.toggle('hubopen');
+  hubBtn.textContent=open?'DRIVE':'HUB';
+  SFX.click();sizeScene();
+};
 var resultAgainBtn=$('resultAgain');
 if(resultAgainBtn)resultAgainBtn.onclick=function(){SFX.click();startRun();};
 
