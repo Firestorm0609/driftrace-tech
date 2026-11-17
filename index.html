@@ -389,6 +389,12 @@ var SFX={
     noiseBurst(.045+.02*v,.025+.045*v,2200+700*v,2.0,pan);
     beep(190,.035,'sawtooth',.008+.012*v,pan);
   },
+  misfire:function(v,pan){
+    v=Math.max(.2,Math.min(1,v||.5));
+    noiseBurst(.055+.035*v,.028+.042*v,220+260*v,1.4,pan);
+    beep(48,.14,'sawtooth',.04+.05*v,pan);
+    beep(112,.055,'square',.018+.025*v,pan);
+  },
   racing:function(){beep(120,.3,'sawtooth',.04)},
   settle:function(){beep(660,.15,'sine',.12);setTimeout(function(){beep(880,.15,'sine',.1)},120);setTimeout(function(){beep(1100,.2,'sine',.08)},240)},
   win:function(){[523,659,784,1047].forEach(function(f,i){setTimeout(function(){beep(f,.18,'sine',.12)},i*100)})},
@@ -469,7 +475,15 @@ function engineStart(){
     var wo=audioCtx.createOscillator();wo.type='triangle';wo.frequency.value=720;
     var wg=audioCtx.createGain();wg.gain.value=0;
     wo.connect(wg);wg.connect(audioCtx.destination);wo.start();
-    eng={o1:o1,o2:o2,f:f,g:g,nf:nf,ng:ng,nz:nz,bg:bg,bo:bo,bog:bog,gg:gg,df:df,dg:dg,wo:wo,wg:wg};
+    /* damaged gearbox: narrow noise pulsed by a low-frequency oscillator */
+    var rf=audioCtx.createBiquadFilter();rf.type='bandpass';rf.frequency.value=1750;rf.Q.value=2.2;
+    var rp=audioCtx.createGain();rp.gain.value=0.55;
+    var rl=audioCtx.createGain();rl.gain.value=0;
+    nz.connect(rf);rf.connect(rp);rp.connect(rl);rl.connect(audioCtx.destination);
+    var ro=audioCtx.createOscillator();ro.type='triangle';ro.frequency.value=24;
+    var rod=audioCtx.createGain();rod.gain.value=0.45;
+    ro.connect(rod);rod.connect(rp.gain);ro.start();
+    eng={o1:o1,o2:o2,f:f,g:g,nf:nf,ng:ng,nz:nz,bg:bg,bo:bo,bog:bog,gg:gg,df:df,dg:dg,wo:wo,wg:wg,rf:rf,rp:rp,rl:rl,ro:ro,rod:rod};
   }catch(e){eng=null}
 }
 function engineUpdate(){
@@ -480,6 +494,7 @@ function engineUpdate(){
     var f0=40+gi.rpm*118+(gi.g-1)*8,live=soundEnabled?1:0;
     var load=(mode==='run')&&keys.u?1:((mode==='run')?(keys.d?0.25:0.5):0.35);
     var cut=shiftCut>0?0.45:1;
+    if(misfireCut>0)cut*=0.16;
     eng.o1.frequency.setTargetAtTime(f0,t,0.035);
     eng.o2.frequency.setTargetAtTime(f0*1.5,t,0.035);
     eng.f.frequency.setTargetAtTime(560+gi.rpm*2100+gi.g*140,t,0.06);
@@ -499,6 +514,12 @@ function engineUpdate(){
     var whineLoad=(mode==='run'&&keys.u)?1:.55;
     eng.wo.frequency.setTargetAtTime(480+gi.rpm*1650+gi.g*54,t,0.03);
     eng.wg.gain.setTargetAtTime(live*cut*(0.0016+0.0062*k*k)*whineLoad,t,0.07);
+    var rd=Math.min(1,pDamage.length/14);
+    var rattle=run?rd*Math.min(1,sp/240)*(0.30+0.70*load):0;
+    if(misfireCut>0)rattle=Math.min(1,rattle*1.6);
+    eng.rl.gain.setTargetAtTime(live*rattle*0.024,t,0.045);
+    eng.rf.frequency.setTargetAtTime(1200+gi.rpm*1500+gi.g*80,t,0.05);
+    eng.ro.frequency.setTargetAtTime(17+41*rd+sp*0.006,t,0.08);
   }catch(e){}
 }
 
@@ -562,6 +583,7 @@ var countT=0,countStep=0,startFlash=0,bumpT=0,bumpMag=0;
 var camKickX=0,scrapeT=0,scrapeTick=0,scrapeX=0,scrapeZ=0,scrapeNx=0,scrapeNz=0,scrapeMag=0,scrapePan=0,scrapeDamageT=0;
 var pDamage=[],rDamage=[],damageSmoke=[],nextDamageSmoke=0;
 var dmgFlash=0,runTopSpd=0,finishKind='';
+var misfireT=0,misfireCut=0,misfirePuff=false,impactJolt=0;
 var runStartZ=0;
 var rivZ=0,rivX=0,rivSpd=60,rivDrift=0.28,rivDriftV=0,rivSteer=0,rivBrake=false,rivDone=false,rivT=0,rivPlan=0;
 var keys={l:0,r:0,u:0,d:0},steerV=0,offRoad=false;
@@ -603,6 +625,7 @@ function drawHud(){
   var dmgPct=Math.round(Math.min(1,pDamage.length/14)*100);
   var dmgBias=damageBias(pDamage),pullTxt=dmgBias>0?'R':(dmgBias<0?'L':'');
   shadeText('DMG '+dmgPct+'%'+(pullTxt?' '+pullTxt:''),4,38,dmgFlash>0?'#ff8a4a':(dmgPct>0?'#ffb27a':'#718663'));
+  if(mode==='run'&&misfireCut>0)shadeText('MISFIRE',4,51,'#ff6a4a');
   var pw=RW-8,prog=Math.max(0,Math.min(1,1-left/RUNLEN));
   sg.fillStyle='rgba(6,12,4,.55)';sg.fillRect(4,16,pw,3);
   sg.fillStyle=offRoad?'#ff7a3d':'#ccff00';sg.fillRect(4,16,Math.max(1,Math.round(pw*prog)),3);
@@ -625,6 +648,7 @@ function startRun(){
   mode='countdown';countT=3;countStep=3;startFlash=0;
   runT=0;runEnd=0;steerV=0;drift=-0.58;SPD=0;raceWon=false;
   runTopSpd=0;finishKind='';dmgFlash=0;
+  misfireT=.9;misfireCut=0;misfirePuff=false;impactJolt=0;
   gearNow=gearAt(SPD/MAXSPD).g;gearJolt=0;shiftCut=0;
   runStartZ=camZ+CARD;
   finishZ=runStartZ+RUNLEN;   /* measured from the car, so the bar starts at zero */
@@ -1098,6 +1122,11 @@ function drawDamageSmoke(dt){
 }
 function drawFumes(dt,HZY,carX,visX){
   var live=mode==='idle'||mode==='countdown'||mode==='run'||mode==='done'||mode==='timeup';
+  if(misfirePuff){
+    misfirePuff=false;
+    var mfx=RW*0.5+(carX-visX)*FOC/CARD;
+    addDamageSmoke(mfx+(Math.random()*2-1)*CARW*.16,RH*0.80-2,1,.9);
+  }
   nextFume-=dt;
   if(live&&nextFume<=0&&fumes.length<110){
     var pace=(mode==='run'&&keys.u)?.055:.12;
@@ -1157,6 +1186,25 @@ function render(ms){
   var dmgRatio=Math.min(1,pDamage.length/14),dmgBias=damageBias(pDamage);
   braking=!!keys.d&&SPD>=-0.5&&mode!=='idle';
   if(dmgFlash>0)dmgFlash=Math.max(0,dmgFlash-dt);
+
+  if(mode==='run'){
+    misfireCut=Math.max(0,misfireCut-dt);
+    misfireT-=dt;
+    var misfireSeverity=Math.max(0,Math.min(1,(dmgRatio-0.28)/0.72));
+    if(misfireSeverity>0&&Math.abs(SPD)>170&&keys.u&&misfireT<=0){
+      misfireCut=.085+.11*dmgRatio;
+      misfireT=(1.65-1.05*misfireSeverity)*(.70+Math.random()*.60);
+      gearJolt=Math.max(gearJolt,.45+.20*dmgRatio);
+      impactJolt=Math.max(impactJolt,.14+.16*dmgRatio);
+      camKickX+=(Math.random()*2-1)*(1.8+4.2*dmgRatio);
+      dmgFlash=Math.max(dmgFlash,.34);
+      misfirePuff=true;
+      SFX.misfire(.32+.68*dmgRatio,Math.max(-.5,Math.min(.5,drift*.7)));
+    }
+  }else{
+    misfireCut=Math.max(0,misfireCut-dt);
+    misfireT=0;
+  }
 
   if(mode==='countdown'){
     countT-=dt;
@@ -1254,9 +1302,10 @@ function render(ms){
   }
   gearJolt=Math.max(0,gearJolt-dt*5.5);
   shiftCut=Math.max(0,shiftCut-dt);
+  impactJolt=Math.max(0,impactJolt-dt*4.2);
 
   var spdK=Math.max(0,Math.min(1,(Math.abs(SPD)-140)/(MAXSPD-140)));
-  CAMH=520-56*spdK*spdK-5*gearJolt;
+  CAMH=520-56*spdK*spdK-5*gearJolt-9*impactJolt;
 
   camZ+=SPD*dt;
   if(camZ<0){camZ=0;if(SPD<0)SPD=0;}
@@ -1339,9 +1388,10 @@ function render(ms){
         var side=Math.abs(nx)>Math.abs(nz),hardHit=impact>5;
         var pan=Math.max(-.9,Math.min(.9,-nx));
         bumpMag=hardHit?Math.min(1,Math.max(side?.25:.16,impact/900)):.10;
-        bumpT=hardHit?.32:.18;
+        bumpT=hardHit?.40+.08*bumpMag:.22;
+        impactJolt=Math.max(impactJolt,hardHit?.45+.85*bumpMag:.16);
         sparkRequest={side:side,nx:nx,nz:nz,mag:bumpMag,x:hit.x,z:hit.z};
-        camKickX=Math.max(-12,Math.min(12,-nx*((hardHit?5:2)+7*bumpMag)));
+        camKickX=Math.max(-18,Math.min(18,-nx*((hardHit?7:3)+10*bumpMag)));
         SFX.bump(bumpMag,pan);
         if(bumpMag>.18||impact>30){
           addBodyDamage(pDamage,-nx,-nz,bumpMag);
@@ -1413,7 +1463,11 @@ function render(ms){
   /* SPEED CUES: the camera drops onto the tarmac as you wind it up, and
      buzzes gently at the top end. HZY is this frame's shaken horizon. */
   var shake=spdK>0.5?Math.round((Math.random()*2-1)*0.9*(spdK-0.5)/0.5):0;
-  if(bumpT>0)shake+=Math.round((Math.random()*2-1)*(0.8+1.7*bumpMag)*(bumpT/.32));
+  if(bumpT>0){
+    var bumpK=bumpT/.40;
+    shake+=Math.round((Math.random()*2-1)*(1.4+3.6*bumpMag)*bumpK);
+    shake+=Math.round(Math.sin(ms/29)*1.3*bumpK);
+  }
   if(scrapeT>0)shake+=Math.round((Math.random()*2-1)*.7);
   var HZY=HZ+shake;
 
@@ -1553,7 +1607,10 @@ function render(ms){
      dropped behind slides under it and off the bottom instead of popping. */
   var rzDraw=rivZ-camZ,showRival=(mode!=='idle');
   if(showRival&&rzDraw>=40)drawRival(HZY,viewX);
-  drawCar(RW*0.5+(carX-viewX)*FOC/CARD,Math.round(RH*0.80)+Math.sin(ms/104)*(0.18+0.55*spdK)*Math.min(1,Math.abs(SPD)/260),drift*0.13+steerV*0.05+driftV*0.06,pDamage);
+  var dmgVibe=dmgRatio>.25?Math.sin(ms/37)*(0.18+0.75*dmgRatio):0;
+  var misfireVibe=misfireCut>0?Math.sin(ms/15)*(0.9+1.3*dmgRatio):0;
+  var carTilt=drift*0.13+steerV*0.05+driftV*0.06+(misfireCut>0?Math.sin(ms/11)*.018:0);
+  drawCar(RW*0.5+(carX-viewX)*FOC/CARD,Math.round(RH*0.80)+Math.sin(ms/104)*(0.18+0.55*spdK)*Math.min(1,Math.abs(SPD)/260)+dmgVibe+misfireVibe,carTilt,pDamage);
   drawSparks(dt);
 
   engineUpdate();
