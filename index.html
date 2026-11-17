@@ -318,9 +318,14 @@ var SFX={
   count:function(){beep(560,.09,'square',.09)},
   bump:function(v){
     v=Math.max(.15,Math.min(1,v||.5));
-    beep(68,.18,'triangle',.07+.07*v);
-    setTimeout(function(){beep(150,.06,'square',.035+.035*v)},12);
-    noiseBurst(.08+.08*v,.05+.08*v,1400+700*v,1.5);
+    beep(54,.22,'triangle',.10+.09*v);
+    beep(88,.12,'sawtooth',.035+.035*v);
+    setTimeout(function(){beep(170,.07,'square',.045+.04*v)},8);
+    noiseBurst(.11+.10*v,.07+.10*v,950+850*v,1.3);
+    if(v>.42){
+      beep(760,.08,'triangle',.025+.035*v);
+      setTimeout(function(){beep(1180,.05,'square',.015+.025*v)},16);
+    }
   },
   racing:function(){beep(120,.3,'sawtooth',.04)},
   settle:function(){beep(660,.15,'sine',.12);setTimeout(function(){beep(880,.15,'sine',.1)},120);setTimeout(function(){beep(1100,.2,'sine',.08)},240)},
@@ -737,18 +742,18 @@ function drawRival(HZY,visX){
 
 /* metal-on-metal: short bright chips thrown from the contact patch */
 function addSparks(x,y,side,dir,mag){
-  var n=Math.round(9+18*mag),i;
+  var n=Math.round(18+36*mag),i;
   for(i=0;i<n;i++){
     sparks.push({
-      x:x+(Math.random()*4-2),y:y+(Math.random()*4-2),
-      vx:(Math.random()*2-1)*(55+150*mag)+(side?dir*(35+90*Math.random()):0),
-      vy:-(35+Math.random()*150)*(0.65+0.65*mag),
-      life:0.18+Math.random()*0.28,
-      w:Math.random()<0.22?2:1,
+      x:x+(Math.random()*7-3.5),y:y+(Math.random()*7-3.5),
+      vx:(Math.random()*2-1)*(65+190*mag)+(side?dir*(45+110*Math.random()):0),
+      vy:-(42+Math.random()*190)*(0.65+0.70*mag),
+      life:0.22+Math.random()*0.40,
+      w:Math.random()<0.18?3:(Math.random()<0.60?2:1),
       col:Math.random()<0.2?'#fff8d4':(Math.random()<0.55?'#ffd23f':'#ff8a2a')
     });
   }
-  if(sparks.length>120)sparks.splice(0,sparks.length-120);
+  if(sparks.length>240)sparks.splice(0,sparks.length-240);
 }
 function drawSparks(dt){
   if(!sparks.length)return;
