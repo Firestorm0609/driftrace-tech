@@ -540,11 +540,14 @@ function drawHud(){
 function startRun(){
   if(mode==='run'||mode==='countdown')return;
   mode='countdown';countT=3;countStep=3;startFlash=0;
-  runT=0;runEnd=0;steerV=0;drift=-0.22;SPD=0;raceWon=false;
+  runT=0;runEnd=0;steerV=0;drift=-0.58;SPD=0;raceWon=false;
   gearNow=gearAt(SPD/MAXSPD).g;gearJolt=0;shiftCut=0;
   runStartZ=camZ+CARD;
   finishZ=runStartZ+RUNLEN;   /* measured from the car, so the bar starts at zero */
-  rivZ=runStartZ+30;rivSpd=0;rivDrift=0.65;rivSteer=0;rivBrake=false;rivDone=false;rivT=0;rivPlan=1;
+  /* Two-abreast grid. The lane gap is wider than the full car footprint,
+     and both cars share the same start line, so neither spawns clipped into
+     the other while the countdown is running. */
+  rivZ=runStartZ;rivSpd=0;rivDrift=0.58;rivSteer=0;rivBrake=false;rivDone=false;rivT=0;rivPlan=0;
   rivX=roadX(rivZ)+rivDrift*ROADH;
   bumpT=0;bumpMag=0;driftV=0;rivDriftV=0;
   smoke=[];sparks=[];STK.length=0;nextPuff=0;
@@ -771,7 +774,7 @@ function render(ms){
   var dt=Math.min(.05,(ms-(render.last||ms))/1000);render.last=ms;
 
   var sCar=camZ+CARD,drift0=drift,rivDrift0=rivDrift;
-  var carWorldW=CARW*CARD/FOC,hitX=carWorldW*1.06;
+  var carWorldW=CARW*CARD/FOC,carHalfW=carWorldW*0.60,hitX=carHalfW*2;
   /* how hard the road is bending under the car right now */
   var bendN=Math.max(-1,Math.min(1,(roadX(sCar+170)-roadX(sCar-170))/620));
   offRoad=Math.abs(drift)>ONG;
@@ -876,68 +879,65 @@ function render(ms){
   sCar=camZ+CARD;
   var sparkRequest=null;
 
-  /* car-to-car contact: split the positional correction between the two
-     cars, then exchange their closing speed through a damped impact. A
-     rear hit shoves the rival forward; a side hit knocks both off line. */
+  /* Full-car contact. Both axes of the body rectangle are tested, so the
+     nose, tail, flank or a corner can take the hit. The overlap correction
+     and the impulse are shared by both cars; this is a 2D rigid-contact
+     model in track space, not a centre-point proximity check. */
   if(mode!=='idle'&&mode!=='countdown'){
     var ddx=(rivDrift-drift)*ROADH,ddz=rivZ-sCar;
-    /* The camera drops as speed rises, compressing vertical perspective. A
-       fixed depth box then resolved a visible gap before the bumpers met.
-       Compute the depth at which the rival's rear touches the player's roof
-       for the camera height being used this frame. */
+    /* The camera drops as speed rises, compressing vertical perspective;
+       match the longitudinal body edge to the drawn car at this height. */
     var contactZ=FOC*CAMH/Math.max(40,RH*0.80-CARW*0.79-HZ)-CARD;
-    var hitZ=Math.max(carWorldW*0.86,Math.min(carWorldW*1.80,contactZ));
-    if(Math.abs(ddx)<hitX&&Math.abs(ddz)<hitZ){
-      var penX=hitX-Math.abs(ddx),penZ=hitZ-Math.abs(ddz);
-      /* Resolve by the cars' alignment, not the shortest overlap. A direct
-         rear-end can have a huge x overlap at the same time, and choosing
-         that axis used to shove the cars sideways and let the player
-         continue through the rival. */
-      /* A car that is clearly ahead/behind is still a rear hit even when the
-         rival is partly off-line. Only use the lateral response when the two
-         cars are genuinely alongside each other. */
-      var rearZone=Math.abs(ddz)>=hitZ*0.55;
-      var sideHit=!rearZone&&Math.abs(ddx)>=hitX*0.55,nx=ddx>=0?1:-1,nz=ddz>=0?1:-1,closing=0;
-      if(sideHit){
-        var pLat=(drift-drift0)/Math.max(dt,0.001)*ROADH;
-        var rLat=(rivDrift-rivDrift0)/Math.max(dt,0.001)*ROADH;
-        closing=Math.max(0,(pLat-rLat)*nx);
-        drift=Math.max(-1.05,Math.min(1.05,drift-nx*penX*0.5/ROADH));
-        rivDrift=Math.max(-1.05,Math.min(1.05,rivDrift+nx*penX*0.5/ROADH));
-        if(closing>4){
-          var jLat=-1.12*((rLat-pLat)*nx)*0.5;
-          driftV=Math.max(-1.6,Math.min(1.6,driftV-nx*jLat/ROADH));
-          rivDriftV=Math.max(-1.6,Math.min(1.6,rivDriftV+nx*jLat/ROADH));
-        }
+    var carHalfL=Math.max(carWorldW*0.43,Math.min(carWorldW*0.90,contactZ*0.5));
+    var overlapX=carHalfW*2-Math.abs(ddx);
+    var overlapZ=carHalfL*2-Math.abs(ddz);
+    if(overlapX>0&&overlapZ>0){
+      /* Minimum-translation axis: the car is a rectangle in x/z, so a
+         corner contact is resolved along whichever edge is least buried. */
+      var axisX=overlapX<overlapZ;
+      var pen=axisX?overlapX:overlapZ;
+      var nx=axisX?(ddx>0?-1:1):0;
+      var nz=axisX?0:(ddz>0?-1:1);
+
+      /* Velocities before position correction, so the correction itself
+         does not get counted as collision speed. */
+      var pVX=(drift-drift0)/Math.max(dt,0.001)*ROADH;
+      var rVX=(rivDrift-rivDrift0)/Math.max(dt,0.001)*ROADH;
+      var pVZ=SPD,rVZ=rivSpd;
+
+      var corr=Math.max(0,pen-0.05)*0.5;
+      if(axisX){
+        drift=Math.max(-1.05,Math.min(1.05,drift+nx*corr/ROADH));
+        rivDrift=Math.max(-1.05,Math.min(1.05,rivDrift-nx*corr/ROADH));
       }else{
-        var sepZ=(rivSpd-SPD)*nz;
-        closing=Math.max(0,-sepZ);
-        var push=penZ*0.5;
-        if(ddz>=0){
-          rivZ+=push;
-          camZ=Math.max(0,camZ-push);
-        }else{
-          camZ+=push;
-          rivZ=Math.max(0,rivZ-push);
-        }
+        camZ=Math.max(0,camZ+nz*corr);
+        rivZ=Math.max(0,rivZ-nz*corr);
         sCar=camZ+CARD;
-        if(closing>4){
-          var jZ=-1.15*sepZ*0.5;
-          SPD=Math.max(-REVSPD,SPD-jZ*nz);
-          rivSpd=Math.max(0,rivSpd+jZ*nz);
-        }
       }
+
+      var rvx=pVX-rVX,rvz=pVZ-rVZ;
+      var vn=rvx*nx+rvz*nz;
+      var impact=Math.max(0,-vn);
+      if(vn<0){
+        var jn=-(1.12)*vn*0.5;
+        pVX+=nx*jn;pVZ+=nz*jn;
+        rVX-=nx*jn;rVZ-=nz*jn;
+        /* Small tangential friction keeps a side scrape from skating. */
+        var tx=-nz,tz=nx,vt=rvx*tx+rvz*tz;
+        var jt=Math.max(-jn*0.35,Math.min(jn*0.35,-vt*0.5*0.55));
+        pVX+=tx*jt;pVZ+=tz*jt;
+        rVX-=tx*jt;rVZ-=tz*jt;
+      }
+      SPD=Math.max(-REVSPD,Math.min(MAXSPD,pVZ));
+      rivSpd=Math.max(0,Math.min(MAXSPD,rVZ));
+      driftV=Math.max(-1.8,Math.min(1.8,pVX/ROADH));
+      rivDriftV=Math.max(-1.8,Math.min(1.8,rVX/ROADH));
       rivX=roadX(rivZ)+rivDrift*ROADH;
-      if(bumpT<=0&&Math.max(penX,penZ)>1.2){
-        var hardHit=closing>4;
-        bumpMag=hardHit?Math.min(1,Math.max(sideHit?.25:.16,closing/(sideHit?240:760))):.10;
+      if(bumpT<=0&&pen>0.8){
+        var hardHit=impact>5;
+        bumpMag=hardHit?Math.min(1,Math.max(axisX?.25:.16,impact/900)):.10;
         bumpT=hardHit?.32:.18;
-        if(hardHit&&sideHit){
-          var scrape=0.012+0.028*bumpMag;
-          SPD=Math.max(0,SPD*(1-scrape));
-          rivSpd=Math.max(0,rivSpd*(1-scrape*0.65));
-        }
-        sparkRequest={side:sideHit,nx:nx,nz:nz,mag:bumpMag};
+        sparkRequest={side:axisX,nx:nx,nz:nz,mag:bumpMag};
         SFX.bump(bumpMag);
       }
     }
