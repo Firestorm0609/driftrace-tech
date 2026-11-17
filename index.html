@@ -581,13 +581,29 @@ var MAXSPD=1500,REVSPD=120,RUNLEN=48000,RUNTIME=60,HUDTOP=700;
 var mode='idle',runT=0,runEnd=0,finishZ=0,braking=false,raceWon=false;
 var countT=0,countStep=0,startFlash=0,bumpT=0,bumpMag=0;
 var camKickX=0,scrapeT=0,scrapeTick=0,scrapeX=0,scrapeZ=0,scrapeNx=0,scrapeNz=0,scrapeMag=0,scrapePan=0,scrapeDamageT=0,scrapeBodyContact=false;
-var pDamage=[],rDamage=[],damageSmoke=[],nextDamageSmoke=0;
+var scrapeLatchT=0,scrapeEpisodeT=0,scrapeCooldownT=0,scrapeLatchCar=null,scrapeLatchNx=0,scrapeLatchNz=0,scrapeLatchX=0,scrapeLatchZ=0;
+var pDamage=[],damageSmoke=[],nextDamageSmoke=0;
 var dmgFlash=0,runTopSpd=0,finishKind='';
 var misfireT=0,misfireCut=0,misfirePuff=false,impactJolt=0;
 var runStartZ=0;
-var rivZ=0,rivX=0,rivSpd=60,rivDrift=0.28,rivDriftV=0,rivSteer=0,rivBrake=false,rivDone=false,rivT=0,rivPlan=0;
+var playerCar=null,rivalCar=null,cars=[];
 var keys={l:0,r:0,u:0,d:0},steerV=0,offRoad=false;
 var ONG=0.63;   /* drift past this and a wheel is on the grass */
+
+/* Fixed simulation step and the two snapshots used to interpolate the
+   draw between them. Gameplay randomness is seeded separately from the
+   cosmetic randomness used by smoke, sparks and camera shake. */
+var FIXED_DT=1/60,simAccum=0,simTime=0;
+var prevCamZ=0,prevCAMH=520,prevCamKickX=0;
+var RACE_SEED=0x6d2b79f5,rngState=RACE_SEED;
+var fxSparks=[],fxScrapes=[];
+function seedGameplay(seed){RACE_SEED=(seed|0)>>>0;rngState=RACE_SEED}
+function gameRnd(){
+  rngState=(rngState+0x6D2B79F5)|0;
+  var t=Math.imul(rngState^(rngState>>>15),1|rngState);
+  t=(t+Math.imul(t^(t>>>7),61|t))^t;
+  return ((t^(t>>>14))>>>0)/4294967296;
+}
 
 function fmtT(t){var s=Math.max(0,t);var r=Math.floor(s%60);return Math.floor(s/60)+':'+(r<10?'0':'')+r}
 function fmtPrecise(t){var s=Math.max(0,t),r=s%60;return Math.floor(s/60)+':'+(r<10?'0':'')+r.toFixed(2)}
@@ -616,7 +632,7 @@ function drawHud(){
     return;
   }
   shadeText('TIME '+fmtT(mode==='run'?runT:runEnd),4,4,(mode==='run'&&runT>50)?'#ff8a4a':'#eaf6d2');
-  var p1=(camZ+CARD)>=rivZ;
+  var p1=(camZ+CARD)>=rivalCar.z;
   shadeText(p1?'P1':'P2',4,25,p1?'#ccff00':'#ff6a4a');
   var kmh=Math.round(SPD/MAXSPD*HUDTOP);
   shadeText((SPD<-1?'R '+Math.abs(kmh):kmh)+' KM/H',RW-4,4,offRoad?'#ffb27a':'#ccff00','right');
@@ -629,7 +645,7 @@ function drawHud(){
   var pw=RW-8,prog=Math.max(0,Math.min(1,1-left/RUNLEN));
   sg.fillStyle='rgba(6,12,4,.55)';sg.fillRect(4,16,pw,3);
   sg.fillStyle=offRoad?'#ff7a3d':'#ccff00';sg.fillRect(4,16,Math.max(1,Math.round(pw*prog)),3);
-  var rp=Math.max(0,Math.min(1,(rivZ-runStartZ)/RUNLEN));
+  var rp=Math.max(0,Math.min(1,(rivalCar.z-runStartZ)/RUNLEN));
   sg.fillStyle='#ff4757';sg.fillRect(4+Math.round(pw*rp)-1,15,3,5);
   if(mode==='countdown'){
     bigText(String(Math.ceil(countT)),RH*0.33,'#eaf6d2');
@@ -637,7 +653,7 @@ function drawHud(){
   }
   if(mode==='run'&&startFlash>0)bigText('START',RH*0.33,'#ccff00');
   if(mode==='run'&&left<5000)shadeText('FINISH AHEAD',RW*0.5,RH*0.24,'#ffffff','center');
-  if(mode==='run'&&rivDone)shadeText('RIVAL FINISHED',RW*0.5,36,'#ff6a4a','center');
+  if(mode==='run'&&rivalCar.done)shadeText('RIVAL FINISHED',RW*0.5,36,'#ff6a4a','center');
   if(mode==='done')shadeText((raceWon?'P1  YOU WIN':'P2  RIVAL WINS')+'  '+fmtT(runEnd),RW*0.5,RH*0.40,raceWon?'#ccff00':'#ff7a3d','center');
   if(mode==='timeup')shadeText('TIME UP',RW*0.5,RH*0.40,'#ff7a3d','center');
   if(mode==='done'||mode==='timeup')shadeText('PRESS ENTER TO RUN AGAIN',RW*0.5,RH*0.40+13,'#a9c98c','center');
@@ -655,13 +671,17 @@ function startRun(){
   /* Two-abreast grid. The lane gap is wider than the full car footprint,
      and both cars share the same start line, so neither spawns clipped into
      the other while the countdown is running. */
-  rivZ=runStartZ;rivSpd=0;rivDrift=0.58;rivSteer=0;rivBrake=false;rivDone=false;rivT=0;rivPlan=0;
-  rivX=roadX(rivZ)+rivDrift*ROADH;
-  bumpT=0;bumpMag=0;driftV=0;rivDriftV=0;
+  resetCar(playerCar,runStartZ,drift);
+  resetCar(rivalCar,runStartZ,0.58);
+  bumpT=0;bumpMag=0;driftV=0;
   camKickX=0;scrapeT=0;scrapeTick=0;scrapeDamageT=0;scrapeBodyContact=false;
-  pDamage=[];rDamage=[];damageSmoke=[];nextDamageSmoke=0;
+  scrapeLatchT=0;scrapeEpisodeT=0;scrapeCooldownT=0;scrapeLatchCar=null;
+  pDamage=[];rivalCar.damage=[];playerCar.damage=pDamage;damageSmoke=[];nextDamageSmoke=0;
   smoke=[];sparks=[];STK.length=0;nextPuff=0;fumes=[];nextFume=0;
-  skids=[];skidTick=0;nextRivalPuff=0;
+  skids=[];skidTick=0;nextRivalPuff=0;fxSparks.length=0;fxScrapes.length=0;
+  seedGameplay(raceTransport.seed);raceTransport.begin();
+  rivalCar.ai=raceTransport.kind==='local';
+  simAccum=0;simTime=0;primeCarSnapshots();
   engineStart();
   SFX.count();
 }
@@ -676,9 +696,9 @@ function showResults(){
   var finished=finishKind==='finish',won=raceWon;
   var sides=damageSides(pDamage);
   var gap='\u2014',gapLabel='RIVAL';
-  if(finished&&rivDone){gap=(rivT>=runEnd?'+':'-')+Math.abs(rivT-runEnd).toFixed(2)+' S';gapLabel='RIVAL GAP';}
+  if(finished&&rivalCar.done){gap=(rivalCar.finishT>=runEnd?'+':'-')+Math.abs(rivalCar.finishT-runEnd).toFixed(2)+' S';gapLabel='RIVAL GAP';}
   else if(finished)gap='BEHIND';
-  else if(rivDone){gap=fmtPrecise(rivT);gapLabel='RIVAL TIME';}
+  else if(rivalCar.done){gap=fmtPrecise(rivalCar.finishT);gapLabel='RIVAL TIME';}
   var dp=Math.min(100,Math.round(pDamage.length/14*100));
   $('resultKicker').textContent=finished?'CHECKERED FLAG':'60 SECOND LIMIT';
   $('resultTitle').textContent=finished?(won?'YOU WIN':'RIVAL WINS'):'TIME UP';
@@ -706,7 +726,7 @@ function finishRun(kind){
   if(mode!=='run')return;
   finishKind=kind;
   runEnd=kind==='timeup'?RUNTIME:runT;
-  raceWon=kind==='finish'&&!(rivDone&&rivT<runT);
+  raceWon=kind==='finish'&&!(rivalCar.done&&rivalCar.finishT<runT);
   if(Math.abs(SPD)>runTopSpd)runTopSpd=Math.abs(SPD);
   mode=kind==='timeup'?'timeup':'done';
   showResults();
@@ -720,6 +740,107 @@ var CARP={
 };
 var carPal=CARP.player;
 
+/* ── CAR STATE ──
+   Every racer is one entry in cars[]. The player's live controls still
+   feed the familiar globals, while collision, drawing and snapshots only
+   read car objects. */
+function makeCar(id,isPlayer,pal,ai){
+  return {id:id,isPlayer:!!isPlayer,pal:pal,ai:!!ai,
+    z:0,x:0,spd:0,drift:0,driftV:0,steer:0,brake:false,done:false,finishT:0,plan:0,
+    damage:[],prevZ:0,prevX:0,prevDrift:0,prevSpd:0,prevDriftV:0,prevSteer:0,prevTilt:0,vx:0,vz:0};
+}
+function resetCar(c,z,d){
+  c.z=c.prevZ=z;c.x=c.prevX=roadX(z)+d*ROADH;
+  c.spd=c.prevSpd=0;c.drift=c.prevDrift=d;c.driftV=c.prevDriftV=0;
+  c.steer=c.prevSteer=0;c.brake=false;c.done=false;c.finishT=0;c.plan=0;
+  c.damage=[];c.vx=0;c.vz=0;c.prevTilt=carTilt(c);
+}
+function carTilt(c){return c.drift*.13+c.steer*.05+c.driftV*.06}
+function syncPlayerCar(){
+  playerCar.z=camZ+CARD;playerCar.x=roadX(playerCar.z)+drift*ROADH;
+  playerCar.spd=SPD;playerCar.drift=drift;playerCar.driftV=driftV;
+  playerCar.steer=steerV;playerCar.brake=braking;playerCar.damage=pDamage;
+}
+function syncPlayerFromCar(){
+  camZ=Math.max(0,playerCar.z-CARD);playerCar.z=camZ+CARD;
+  SPD=Math.max(-REVSPD,Math.min(MAXSPD,playerCar.spd));
+  drift=Math.max(-1.05,Math.min(1.05,playerCar.drift));
+  driftV=Math.max(-1.8,Math.min(1.8,playerCar.driftV));
+  playerCar.x=roadX(playerCar.z)+drift*ROADH;
+}
+function primeCarSnapshots(){
+  syncPlayerCar();
+  for(var i=0;i<cars.length;i++){
+    var c=cars[i];
+    c.prevZ=c.z;c.prevX=c.x;c.prevDrift=c.drift;c.prevSpd=c.spd;
+    c.prevDriftV=c.driftV;c.prevSteer=c.steer;c.prevTilt=carTilt(c);
+  }
+  prevCamZ=camZ;prevCAMH=CAMH;prevCamKickX=camKickX;
+}
+playerCar=makeCar('player',true,CARP.player,false);
+playerCar.damage=pDamage;
+rivalCar=makeCar('rival',false,CARP.rival,true);
+rivalCar.damage=[];
+cars=[playerCar,rivalCar];
+
+/* ── TRANSPORT ──
+   The race only calls this small interface. A local race drives the AI
+   car; a replay feeds recorded snapshots; a socket feeds the latest state
+   from another browser. Swapping transports does not change the game loop. */
+function keyboardInput(k){return{l:k.l?1:0,r:k.r?1:0,u:k.u?1:0,d:k.d?1:0}}
+function applyRemoteState(car,s){
+  if(!s)return;
+  car.z=+s.z;car.x=(s.x===undefined?roadX(car.z)+ (+s.drift||0)*ROADH:+s.x);
+  car.spd=+s.spd||0;car.drift=+s.drift||0;car.driftV=+s.driftV||0;
+  car.steer=+s.steer||0;car.brake=!!s.brake;car.done=!!s.done;car.finishT=+s.finishT||0;
+  if(s.damage&&s.damage.length)car.damage=s.damage.slice(0,14);
+}
+function LocalTransport(seed){
+  return{kind:'local',seed:(seed||RACE_SEED)>>>0,begin:function(){},input:keyboardInput,
+    sendInput:function(){},
+    update:function(list,dt){
+      if(mode!=='run')return;
+      for(var i=0;i<list.length;i++)if(list[i].ai)stepAICar(list[i],dt);
+    }};
+}
+function ReplayTransport(frames,seed){
+  var t=0;
+  return{kind:'replay',seed:(seed||RACE_SEED)>>>0,begin:function(){t=0},input:keyboardInput,
+    sendInput:function(){},
+    update:function(list,dt){
+      t+=dt;var frame=frames&&frames.length?frames[0]:null;
+      for(var i=0;i<(frames||[]).length;i++){if(frames[i].t<=t)frame=frames[i];else break}
+      if(!frame)return;
+      for(var j=0;j<list.length;j++){
+        var c=list[j];if(c.isPlayer)continue;
+        var states=frame.cars||{},s=states[c.id]||states.rival;
+        if(s)applyRemoteState(c,s);
+      }
+    }};
+}
+function SocketTransport(url,seed){
+  var ws=null,latest={};
+  function applyMessage(ev){
+    var m;try{m=JSON.parse(ev.data)}catch(e){return}
+    if(m.type==='state'&&m.cars){
+      for(var i=0;i<m.cars.length;i++)if(m.cars[i].id)latest[m.cars[i].id]=m.cars[i];
+    }else if(m.type==='state'&&m.id)latest[m.id]=m;
+  }
+  function connect(){
+    if(ws||!url||typeof WebSocket==='undefined')return;
+    try{ws=new WebSocket(url);ws.onmessage=applyMessage}catch(e){ws=null}
+  }
+  return{kind:'socket',seed:(seed||RACE_SEED)>>>0,begin:connect,input:keyboardInput,
+    sendInput:function(input,seq){if(ws&&ws.readyState===1)ws.send(JSON.stringify({type:'input',seq:seq,input:input}))},
+    update:function(list){
+      for(var i=0;i<list.length;i++){
+        var c=list[i];if(c.isPlayer)continue;
+        var s=latest[c.id]||latest.rival;if(s)applyRemoteState(c,s);
+      }
+    }};
+}
+var raceTransport=new LocalTransport(RACE_SEED);
+
 /* Scuffs and dents live in the car's local space, so they rotate and scale
    with the body. Hard hits add the first marks; sustained scrapes add more. */
 function addBodyDamage(marks,nx,nz,mag){
@@ -730,20 +851,20 @@ function addBodyDamage(marks,nx,nz,mag){
     var x,y,w,h;
     if(side){
       var s=nx<0?1:-1;
-      x=s*CARW*(.36+Math.random()*.09);
-      y=-CARW*(.19+Math.random()*.26);
-      w=Math.max(1,Math.round(CARW*(.025+Math.random()*.045)));
-      h=Math.max(2,Math.round(CARW*(.045+Math.random()*.08)));
+      x=s*CARW*(.36+gameRnd()*.09);
+      y=-CARW*(.19+gameRnd()*.26);
+      w=Math.max(1,Math.round(CARW*(.025+gameRnd()*.045)));
+      h=Math.max(2,Math.round(CARW*(.045+gameRnd()*.08)));
     }else{
-      x=(Math.random()*2-1)*CARW*.28;
-      y=-CARW*(.17+Math.random()*.34);
-      w=Math.max(2,Math.round(CARW*(.04+Math.random()*.07)));
-      h=Math.max(1,Math.round(CARW*(.025+Math.random()*.04)));
+      x=(gameRnd()*2-1)*CARW*.28;
+      y=-CARW*(.17+gameRnd()*.34);
+      w=Math.max(2,Math.round(CARW*(.04+gameRnd()*.07)));
+      h=Math.max(1,Math.round(CARW*(.025+gameRnd()*.04)));
     }
-    marks.push({x:x,y:y,w:w,h:h,dent:Math.random()<.4});
+    marks.push({x:x,y:y,w:w,h:h,dent:gameRnd()<.4});
   }
-  if(mag>.7&&marks.length<12&&Math.random()<.55){
-    marks.push({x:(Math.random()*2-1)*CARW*.25,y:-CARW*(.58+Math.random()*.12),
+  if(mag>.7&&marks.length<12&&gameRnd()<.55){
+    marks.push({x:(gameRnd()*2-1)*CARW*.25,y:-CARW*(.58+gameRnd()*.12),
       w:Math.max(2,Math.round(CARW*.05)),h:Math.max(1,Math.round(CARW*.03)),dent:true});
   }
   if(marks.length>14)marks.splice(0,marks.length-14);
@@ -974,8 +1095,8 @@ function drawSpeedRush(dt,spdK){
    A just-passed rival is still drawn under the player and leaves through
    the bottom of the frame; culling it at the player's row made it vanish
    while it was still alongside. */
-function rivalProjection(HZY,visX){
-  var rz=rivZ-camZ;
+function carProjection(car,HZY,visX){
+  var rz=car.z-camZ;
   if(rz<40||rz>14000)return null;
   var raw=Math.min(1,CARD/rz);
   /* Cars racing together stay the same size; only a car clearly up the
@@ -985,8 +1106,8 @@ function rivalProjection(HZY,visX){
   /* Near the player, project lateral spacing at the player's depth as well
      as its size. Otherwise a car slightly ahead is drawn narrower than its
      hitbox and its sprite can sit inside the player's. */
-  var xp=RW*0.5+(rivX-visX)*FOC/rz;
-  var xn=RW*0.5+(rivX-visX)*FOC/CARD;
+  var xp=RW*0.5+(car.x-visX)*FOC/rz;
+  var xn=RW*0.5+(car.x-visX)*FOC/CARD;
   var x=xp+(xn-xp)*near;
   var y=HZY+FOC*CAMH/rz;
   var side=Math.max(0,1-Math.abs(rz-CARD)/80);
@@ -994,13 +1115,13 @@ function rivalProjection(HZY,visX){
   if(y>RH+70||x<-RW*0.8||x>RW*1.8)return null;
   return {x:x,y:y,sc:sc,rz:rz};
 }
-function drawRival(HZY,visX){
-  var v=rivalProjection(HZY,visX);
+function drawOpponent(car,HZY,visX){
+  var v=carProjection(car,HZY,visX);
   if(!v)return;
-  carPal=CARP.rival;
+  carPal=car.pal;
   sg.save();
   sg.translate(v.x,v.y);sg.scale(v.sc,v.sc);
-  drawCar(0,0,rivDrift*0.13+rivSteer*0.05+rivDriftV*0.06,rivBrake,rDamage);
+  drawCar(0,0,carTilt(car),car.brake,car.damage);
   sg.restore();
   carPal=CARP.player;
 }
@@ -1114,20 +1235,30 @@ function hullsTouch(a,b,pad){
   }
   return true;
 }
-function visibleBodiesTouch(playerTilt,rivalTilt,pad){
+function cameraViewX(){
   var sCar=camZ+CARD;
-  var visX=roadX(camZ)+0.90*(roadX(sCar)-roadX(camZ))+camKickX;
-  var playerX=RW*0.5+(roadX(sCar)+drift*ROADH-visX)*FOC/CARD;
-  var rv=rivalProjection(HZ,visX);
-  /* A rival outside the frame is handled by the physical box alone. */
-  if(!rv)return true;
-  var rivalHull=carHull(rv.x,rv.y,rv.sc,rivalTilt),i,onScreen=false;
-  for(i=0;i<rivalHull.length;i++){
-    var p=rivalHull[i];
-    if(p.x>-3&&p.x<RW+3&&p.y>-3&&p.y<RH+3){onScreen=true;break;}
+  return roadX(camZ)+0.90*(roadX(sCar)-roadX(camZ))+camKickX;
+}
+function screenCar(car,visX){
+  if(car.isPlayer){
+    return {x:RW*0.5+(roadX(camZ+CARD)+drift*ROADH-visX)*FOC/CARD,
+      y:RH*0.80,sc:1,tilt:carTilt(car)};
   }
-  if(!onScreen)return true;
-  return hullsTouch(carHull(playerX,RH*0.80,1,playerTilt),rivalHull,pad);
+  var v=carProjection(car,HZ,visX);
+  if(!v)return null;
+  v.tilt=carTilt(car);
+  return v;
+}
+function visibleCarsTouch(a,b,pad){
+  var visX=cameraViewX(),sa=screenCar(a,visX),sb=screenCar(b,visX),i,p,onA=false,onB=false;
+  /* Cars outside the frame are handled by their physical boxes alone. */
+  if(!sa||!sb)return true;
+  var ha=carHull(sa.x,sa.y,sa.sc,sa.tilt),hb=carHull(sb.x,sb.y,sb.sc,sb.tilt);
+  for(i=0;i<ha.length;i++){p=ha[i];if(p.x>-3&&p.x<RW+3&&p.y>-3&&p.y<RH+3){onA=true;break}}
+  for(i=0;i<hb.length;i++){p=hb[i];if(p.x>-3&&p.x<RW+3&&p.y>-3&&p.y<RH+3){onB=true;break}}
+  if((a.isPlayer&&!onB)||(b.isPlayer&&!onA))return true;
+  if(!onA||!onB)return true;
+  return hullsTouch(ha,hb,pad);
 }
 
 /* ── EXHAUST FUMES ──
@@ -1187,9 +1318,9 @@ function drawFumes(dt,HZY,carX,visX){
     var pPower=Math.max(.22,Math.abs(SPD)/MAXSPD);
     var side=Math.random()<.5?-1:1;
     addFumePuff(pBaseX+side*CARW*.50,pBaseY-CARW*.045,1,pPower,side);
-    var rv=rivalProjection(HZY,visX);
+    var rv=carProjection(rivalCar,HZY,visX);
     if(rv){
-      var rPower=Math.max(.25,Math.min(1,rivSpd/MAXSPD));
+      var rPower=Math.max(.25,Math.min(1,rivalCar.spd/MAXSPD));
       var rside=Math.random()<.5?-1:1;
       addFumePuff(rv.x+rside*CARW*.50*rv.sc,rv.y-CARW*.045*rv.sc,rv.sc,rPower,rside);
     }
@@ -1202,10 +1333,10 @@ function drawFumes(dt,HZY,carX,visX){
       addDamageSmoke(pDmgX+(Math.random()<.5?-1:1)*CARW*(.20+Math.random()*.22),
                      pDmgY-CARW*.10,1,.28+Math.min(.65,pDamage.length/14));
     }
-    if(rDamage.length>=3){
-      var dr=rivalProjection(HZY,visX);
+    if(rivalCar.damage.length>=3){
+      var dr=carProjection(rivalCar,HZY,visX);
       if(dr)addDamageSmoke(dr.x+(Math.random()<.5?-1:1)*CARW*.22*dr.sc,
-                           dr.y-CARW*.10*dr.sc,dr.sc,.28+Math.min(.65,rDamage.length/14));
+                           dr.y-CARW*.10*dr.sc,dr.sc,.28+Math.min(.65,rivalCar.damage.length/14));
     }
   }
   for(var i=fumes.length-1;i>=0;i--){
@@ -1225,61 +1356,147 @@ function drawFumes(dt,HZY,carX,visX){
   sg.globalAlpha=1;
 }
 
-function render(ms){
-  if(!sg)return;
-  var dt=Math.min(.05,(ms-(render.last||ms))/1000);render.last=ms;
+function stepAICar(car,dt){
+  var sCar=camZ+CARD;
+  var carWorldW=CARW*CARD/FOC,hitX=carWorldW*1.2;
+  var rb=Math.max(-1,Math.min(1,(roadX(car.z+170)-roadX(car.z-170))/620));
+  var rDmgRatio=Math.min(1,car.damage.length/14);
+  var rTarget=1300*(1-0.075*rDmgRatio)*(1-0.06*Math.min(1,Math.abs(rb)));
+  var rAccel=150*(1-0.20*rDmgRatio);
+  if(car.spd<rTarget)car.spd=Math.min(rTarget,car.spd+rAccel*dt);
+  else car.spd=Math.max(rTarget,car.spd-300*dt);
+  car.brake=car.spd>rTarget+2;
+  car.z+=car.spd*dt;
+  var rLane=-rb*0.35+0.12,along=car.z-sCar;
+  var pOff=drift*ROADH,rOff=car.drift*ROADH;
+  var centeredBehind=along>0&&along<520&&Math.abs(pOff-rOff)<hitX*0.62;
+  if(centeredBehind){
+    rLane=car.drift;car.plan=0;
+  }else if(along<520&&along>-300&&(SPD>car.spd+50||car.plan)){
+    if(!car.plan)car.plan=pOff>8?-1:(pOff<-8?1:(car.drift>=0?1:-1));
+    rLane=car.plan>0?Math.max(rLane,0.65):Math.min(rLane,-0.65);
+  }else car.plan=0;
+  rLane=Math.max(-0.65,Math.min(0.65,rLane));
+  var rPrev=car.drift;
+  car.drift+=(rLane-car.drift)*(1-Math.exp(-dt*2.2))+car.driftV*dt;
+  car.driftV*=Math.exp(-dt*4.8);
+  car.drift=Math.max(-1.05,Math.min(1.05,car.drift));
+  car.steer=Math.max(-0.7,Math.min(0.7,(car.drift-rPrev)/Math.max(dt,0.001)*0.7-rb*0.25));
+  car.x=roadX(car.z)+car.drift*ROADH;
+  if(car.z>=finishZ&&!car.done){car.done=true;car.finishT=runT;}
+}
 
-  var sCar=camZ+CARD,drift0=drift,rivDrift0=rivDrift;
-  var carWorldW=CARW*CARD/FOC,carHalfW=carWorldW*0.60,hitX=carHalfW*2;
-  /* how hard the road is bending under the car right now */
+/* One physical contact. The player is always the first car when involved,
+   so the camera/audio reaction stays player-centric. */
+function stepPair(a,b,dt,carHalfW,carHalfL){
+  if(!a.isPlayer&&b.isPlayer){var sw=a;a=b;b=sw}
+  var hit=boxContact(a.x,a.z,carHalfW,carHalfL,-carTilt(a),
+                     b.x,b.z,carHalfW,carHalfL,-carTilt(b));
+  if(!hit.hit||!visibleCarsTouch(a,b,1.4))return false;
+  var nx=hit.nx,nz=hit.nz,pen=hit.pen,preLane=Math.abs(a.x-b.x);
+  var avx=a.vx,avz=a.vz,bvx=b.vx,bvz=b.vz;
+  var corr=Math.max(0,pen-0.02)*0.85;
+  a.drift=Math.max(-1.05,Math.min(1.05,a.drift+nx*corr/ROADH));
+  b.drift=Math.max(-1.05,Math.min(1.05,b.drift-nx*corr/ROADH));
+  a.z=Math.max(0,a.z+nz*corr);b.z=Math.max(0,b.z-nz*corr);
+  a.x=roadX(a.z)+a.drift*ROADH;b.x=roadX(b.z)+b.drift*ROADH;
+  for(var pass=0;pass<4;pass++){
+    var post=boxContact(a.x,a.z,carHalfW,carHalfL,-carTilt(a),
+                        b.x,b.z,carHalfW,carHalfL,-carTilt(b));
+    if(!post.hit||post.pen<=0.03)break;
+    var corr2=Math.max(0,post.pen-0.01)*0.75;
+    a.drift=Math.max(-1.05,Math.min(1.05,a.drift+post.nx*corr2/ROADH));
+    b.drift=Math.max(-1.05,Math.min(1.05,b.drift-post.nx*corr2/ROADH));
+    a.z=Math.max(0,a.z+post.nz*corr2);b.z=Math.max(0,b.z-post.nz*corr2);
+    a.x=roadX(a.z)+a.drift*ROADH;b.x=roadX(b.z)+b.drift*ROADH;
+  }
+  var rvx=avx-bvx,rvz=avz-bvz,vn=rvx*nx+rvz*nz,impact=Math.max(0,-vn);
+  if(vn<0){
+    var jn=-(1.12)*vn*0.5;
+    avx+=nx*jn;avz+=nz*jn;bvx-=nx*jn;bvz-=nz*jn;
+    var tx=-nz,tz=nx,vt=rvx*tx+rvz*tz;
+    var jt=Math.max(-jn*0.35,Math.min(jn*0.35,-vt*0.5*0.55));
+    avx+=tx*jt;avz+=tz*jt;bvx-=tx*jt;bvz-=tz*jt;
+  }
+  a.spd=Math.max(-REVSPD,Math.min(MAXSPD,avz));
+  b.spd=Math.max(0,Math.min(MAXSPD,bvz));
+  a.driftV=Math.max(-1.8,Math.min(1.8,avx/ROADH));
+  b.driftV=Math.max(-1.8,Math.min(1.8,bvx/ROADH));
+  a.vx=avx;a.vz=a.spd;b.vx=bvx;b.vz=b.spd;
+  if(a.isPlayer){
+    syncPlayerFromCar();syncPlayerCar();
+    if(Math.abs(nx)>Math.abs(nz)&&scrapeLatchT<=0&&scrapeCooldownT<=0&&preLane<carHalfW*2+6){
+      scrapeLatchT=.55;scrapeEpisodeT=.55;scrapeLatchCar=b;
+      scrapeLatchNx=nx;scrapeLatchNz=nz;scrapeLatchX=hit.x;scrapeLatchZ=hit.z;
+    }
+    if(bumpT<=0&&pen>0.01&&!(scrapeT>0&&Math.abs(nx)>Math.abs(nz))){
+      var side=Math.abs(nx)>Math.abs(nz),hardHit=impact>5;
+      var pan=Math.max(-.9,Math.min(.9,-nx));
+      bumpMag=hardHit?Math.min(1,Math.max(side?.25:.16,impact/900)):(side?.25:.10);
+      bumpT=hardHit?.40+.08*bumpMag:.22;
+      impactJolt=Math.max(impactJolt,hardHit?.45+.85*bumpMag:.16);
+      camKickX=Math.max(-18,Math.min(18,-nx*((hardHit?7:3)+10*bumpMag)));
+      fxSparks.push({side:side,nx:nx,nz:nz,mag:bumpMag,x:hit.x,z:hit.z});
+      SFX.bump(bumpMag,pan);
+      scrapeBodyContact=true;
+      if(bumpMag>.18||impact>30){
+        addBodyDamage(pDamage,-nx,-nz,bumpMag);
+        addBodyDamage(b.damage,nx,nz,bumpMag);
+        scrapeDamageT=Math.max(scrapeDamageT,.45);
+        dmgFlash=Math.max(dmgFlash,.65);
+      }
+    }
+  }
+  return true;
+}
+
+function stepRace(dt,inputs){
+  syncPlayerCar();
+  var i,c,cw=CARW*CARD/FOC;
+  for(i=0;i<cars.length;i++){
+    c=cars[i];c.prevZ=c.z;c.prevX=c.x;c.prevDrift=c.drift;c.prevSpd=c.spd;
+    c.prevDriftV=c.driftV;c.prevSteer=c.steer;c.prevTilt=carTilt(c);
+  }
+  prevCamZ=camZ;prevCAMH=CAMH;prevCamKickX=camKickX;
+  simTime+=dt;
+  var cmd=inputs||keys;
+  var sCar=camZ+CARD;
+  var dmgRatio=Math.min(1,pDamage.length/14),dmgBias=damageBias(pDamage);
   var bendN=Math.max(-1,Math.min(1,(roadX(sCar+170)-roadX(sCar-170))/620));
   offRoad=Math.abs(drift)>ONG;
-  var dmgRatio=Math.min(1,pDamage.length/14),dmgBias=damageBias(pDamage);
-  braking=!!keys.d&&SPD>=-0.5&&mode!=='idle';
+  braking=!!cmd.d&&SPD>=-0.5&&mode!=='idle';
   if(dmgFlash>0)dmgFlash=Math.max(0,dmgFlash-dt);
 
   if(mode==='run'){
-    misfireCut=Math.max(0,misfireCut-dt);
-    misfireT-=dt;
+    misfireCut=Math.max(0,misfireCut-dt);misfireT-=dt;
     var misfireSeverity=Math.max(0,Math.min(1,(dmgRatio-0.28)/0.72));
-    if(misfireSeverity>0&&Math.abs(SPD)>170&&keys.u&&misfireT<=0){
+    if(misfireSeverity>0&&Math.abs(SPD)>170&&cmd.u&&misfireT<=0){
       misfireCut=.085+.11*dmgRatio;
-      misfireT=(1.65-1.05*misfireSeverity)*(.70+Math.random()*.60);
+      misfireT=(1.65-1.05*misfireSeverity)*(.70+gameRnd()*.60);
       gearJolt=Math.max(gearJolt,.45+.20*dmgRatio);
       impactJolt=Math.max(impactJolt,.14+.16*dmgRatio);
-      camKickX+=(Math.random()*2-1)*(1.8+4.2*dmgRatio);
-      dmgFlash=Math.max(dmgFlash,.34);
-      misfirePuff=true;
+      camKickX+=(gameRnd()*2-1)*(1.8+4.2*dmgRatio);
+      dmgFlash=Math.max(dmgFlash,.34);misfirePuff=true;
       SFX.misfire(.32+.68*dmgRatio,Math.max(-.5,Math.min(.5,drift*.7)));
     }
-  }else{
-    misfireCut=Math.max(0,misfireCut-dt);
-    misfireT=0;
-  }
+  }else{misfireCut=Math.max(0,misfireCut-dt);misfireT=0}
 
   if(mode==='countdown'){
-    countT-=dt;
-    var cn=Math.ceil(countT);
-    if(cn>0&&cn!==countStep){countStep=cn;SFX.count();}
-    if(countT<=0){mode='run';runT=0;startFlash=0.9;SFX.raceStart();}
+    countT-=dt;var cn=Math.ceil(countT);
+    if(cn>0&&cn!==countStep){countStep=cn;SFX.count()}
+    if(countT<=0){mode='run';runT=0;startFlash=.9;SFX.raceStart()}
   }
   if(startFlash>0)startFlash=Math.max(0,startFlash-dt);
 
   if(mode==='idle'){
-    /* attract mode: the car drives itself along the racing line */
-    drift+=(bendN*-0.55-drift)*(1-Math.exp(-dt*2.6));
-    SPD=250;
+    drift+=(bendN*-0.55-drift)*(1-Math.exp(-dt*2.6));SPD=250;
   }else{
     if(mode==='run'){
-      runT+=dt;
-      if(Math.abs(SPD)>runTopSpd)runTopSpd=Math.abs(SPD);
+      runT+=dt;if(Math.abs(SPD)>runTopSpd)runTopSpd=Math.abs(SPD);
       if(runT>=RUNTIME)finishRun('timeup');
     }
-    var sIn=(mode==='run')?((keys.l?-1:0)+(keys.r?1:0)):0;
+    var sIn=(mode==='run')?((cmd.l?-1:0)+(cmd.r?1:0)):0;
     steerV+=(sIn-steerV)*(1-Math.exp(-dt*14));
-    /* the bend shoves you wide, the wheel pulls you back; grass kills grip.
-       Damage reduces steering authority, lowers the top end and pulls the
-       car toward its battered side. */
     var dmgTop=MAXSPD*(1-0.075*dmgRatio);
     var dmgSteer=(offRoad?0.45:1)*(1-0.26*dmgRatio);
     var dmgPull=dmgBias*0.022*Math.min(1,Math.abs(SPD)/MAXSPD);
@@ -1287,251 +1504,148 @@ function render(ms){
     drift+=driftV*dt;driftV*=Math.exp(-dt*(4.8-1.2*dmgRatio));
     drift=Math.max(-1.05,Math.min(1.05,drift));
     if(mode==='run'){
-      /* the brake brings the car to a dead stop and then reverses it */
-      if(keys.u){
+      if(cmd.u){
         var acc=GEARACC[gearAt(Math.abs(SPD)/MAXSPD).g-1]||70;
-        acc*=1-0.18*dmgRatio;
-        SPD=Math.min(dmgTop,SPD+acc*dt);
-      }else if(keys.d){
-        if(SPD>0)SPD=Math.max(0,SPD-1400*dt);
-        else SPD=Math.max(-REVSPD,SPD-300*dt);
+        acc*=1-0.18*dmgRatio;SPD=Math.min(dmgTop,SPD+acc*dt);
+      }else if(cmd.d){
+        if(SPD>0)SPD=Math.max(0,SPD-1400*dt);else SPD=Math.max(-REVSPD,SPD-300*dt);
       }else{
-        if(SPD>0)SPD=Math.max(0,SPD-100*dt);
-        else SPD=Math.min(0,SPD+220*dt);
+        if(SPD>0)SPD=Math.max(0,SPD-100*dt);else SPD=Math.min(0,SPD+220*dt);
       }
       var capF=offRoad?Math.min(MAXSPD*0.45,dmgTop):dmgTop,capR=offRoad?REVSPD*0.45:REVSPD;
       if(SPD>capF)SPD=Math.max(capF,SPD-620*dt);
       if(SPD<-capR)SPD=Math.min(-capR,SPD+620*dt);
       if(Math.abs(SPD)>runTopSpd)runTopSpd=Math.abs(SPD);
       if(sCar>=finishZ)finishRun('finish');
-    }else{
-      SPD=Math.max(0,SPD-150*dt);
-    }
+    }else SPD=Math.max(0,SPD-150*dt);
   }
+  syncPlayerCar();
+  raceTransport.update(cars,dt);
+  syncPlayerCar();
 
-  /* ── THE RIVAL ──
-     It gets to its pace harder but tops out lower, and it yields a lane
-     when you are close, so the pass is a real moment rather than a clip. */
-  if(mode==='run'){
-    var rb=Math.max(-1,Math.min(1,(roadX(rivZ+170)-roadX(rivZ-170))/620));
-    var rDmgRatio=Math.min(1,rDamage.length/14);
-    var rTarget=1300*(1-0.075*rDmgRatio)*(1-0.06*Math.min(1,Math.abs(rb)));
-    var rAccel=150*(1-0.20*rDmgRatio);
-    if(rivSpd<rTarget)rivSpd=Math.min(rTarget,rivSpd+rAccel*dt);
-    else rivSpd=Math.max(rTarget,rivSpd-300*dt);
-    rivBrake=rivSpd>rTarget+2;
-    rivZ+=rivSpd*dt;
-    var rLane=-rb*0.35+0.12,along=rivZ-sCar;
-    var pOff=drift*ROADH,rOff=rivDrift*ROADH;
-    /* Do not jump out of the way while someone is lined up directly behind:
-       that made a straight rear-end impossible to land. It still yields once
-       the player is alongside or has pulled out to pass. */
-    var centeredBehind=along>0&&along<520&&Math.abs(pOff-rOff)<hitX*0.62;
-    if(centeredBehind){
-      /* Hold the line for a car tucked directly behind. Jumping to the
-         escape lane here made a rear-end impossible to land. */
-      rLane=rivDrift;rivPlan=0;
-    }else if(along<520&&along>-300&&(SPD>rivSpd+50||rivPlan)){
-      if(!rivPlan)rivPlan=pOff>8?-1:(pOff<-8?1:(rivDrift>=0?1:-1));
-      rLane=rivPlan>0?Math.max(rLane,0.65):Math.min(rLane,-0.65);
-    }else rivPlan=0;
-    rLane=Math.max(-0.65,Math.min(0.65,rLane));
-    var rPrev=rivDrift;
-    rivDrift+=(rLane-rivDrift)*(1-Math.exp(-dt*2.2))+rivDriftV*dt;
-    rivDriftV*=Math.exp(-dt*4.8);
-    rivDrift=Math.max(-1.05,Math.min(1.05,rivDrift));
-    rivSteer=Math.max(-0.7,Math.min(0.7,(rivDrift-rPrev)/Math.max(dt,0.001)*0.7-rb*0.25));
-    rivX=roadX(rivZ)+rivDrift*ROADH;
-    if(rivZ>=finishZ&&!rivDone){rivDone=true;rivT=runT;}
-  }
-
-  /* the box reads the speed and steps up a ratio: a click, a cut in the
-     motor, and a short squat on the camera mark every shift */
   if(mode==='run'&&Math.abs(SPD)>2){
     var ng=gearAt(Math.abs(SPD)/MAXSPD).g;
-    if(ng!==gearNow){shiftBlip(ng>gearNow);shiftCut=.09;gearJolt=1;gearNow=ng;}
+    if(ng!==gearNow){shiftBlip(ng>gearNow);shiftCut=.09;gearJolt=1;gearNow=ng}
   }
-  gearJolt=Math.max(0,gearJolt-dt*5.5);
-  shiftCut=Math.max(0,shiftCut-dt);
+  gearJolt=Math.max(0,gearJolt-dt*5.5);shiftCut=Math.max(0,shiftCut-dt);
   impactJolt=Math.max(0,impactJolt-dt*4.2);
-
   var spdK=Math.max(0,Math.min(1,(Math.abs(SPD)-140)/(MAXSPD-140)));
   CAMH=520-56*spdK*spdK-5*gearJolt-9*impactJolt;
-
   camZ+=SPD*dt;
-  if(camZ<0){camZ=0;if(SPD<0)SPD=0;}
+  if(camZ<0){camZ=0;if(SPD<0)SPD=0}
+  syncPlayerCar();
   sCar=camZ+CARD;
-  var sparkRequest=null,scrapeRequest=null;
+  for(i=0;i<cars.length;i++){
+    c=cars[i];c.vx=(c.drift-c.prevDrift)/Math.max(dt,.001)*ROADH;c.vz=c.spd;
+  }
 
-  /* Whole-body contact: an oriented rectangle follows each car's visual
-     yaw and covers the tyres and bumper tips. SAT checks every face and
-     edge pair, so the collision can start at any point around the body.
-     Separation and the normal/tangential impulse are shared by both cars. */
   if(mode!=='idle'&&mode!=='countdown'){
-    var playerTilt=drift*0.13+steerV*0.05+driftV*0.06;
-    var rivalTilt=rivDrift*0.13+rivSteer*0.05+rivDriftV*0.06;
-    /* The camera drops as speed rises, compressing vertical perspective;
-       match the longitudinal body edge to the drawn car at this height. */
     var contactZ=FOC*CAMH/Math.max(40,RH*0.80-CARW*0.79-HZ)-CARD;
-    var carHalfL=Math.max(carWorldW*0.43,Math.min(carWorldW*0.90,contactZ*0.5));
-    var playerWorldX=roadX(sCar)+drift*ROADH;
-    rivX=roadX(rivZ)+rivDrift*ROADH;
-    var hit=boxContact(playerWorldX,sCar,carHalfW,carHalfL,-playerTilt,
-                       rivX,rivZ,carHalfW,carHalfL,-rivalTilt);
-    if(hit.hit&&visibleBodiesTouch(playerTilt,rivalTilt,1.4)){
-      var nx=hit.nx,nz=hit.nz,pen=hit.pen;
+    var carHalfW=cw*.60,carHalfL=Math.max(cw*.43,Math.min(cw*.90,contactZ*.5));
+    for(i=0;i<cars.length;i++)for(var j=i+1;j<cars.length;j++)stepPair(cars[i],cars[j],dt,carHalfW,carHalfL);
+    syncPlayerFromCar();syncPlayerCar();
+    for(i=0;i<cars.length;i++){c=cars[i];c.x=roadX(c.z)+c.drift*ROADH}
+  }
 
-      /* Velocities before position correction, so the correction itself
-         does not get counted as collision speed. */
-      var pVX=(drift-drift0)/Math.max(dt,0.001)*ROADH;
-      var rVX=(rivDrift-rivDrift0)/Math.max(dt,0.001)*ROADH;
-      var pVZ=SPD,rVZ=rivSpd;
-
-      var corr=Math.max(0,pen-0.05)*0.5;
-      drift=Math.max(-1.05,Math.min(1.05,drift+nx*corr/ROADH));
-      rivDrift=Math.max(-1.05,Math.min(1.05,rivDrift-nx*corr/ROADH));
-      camZ=Math.max(0,camZ+nz*corr);
-      rivZ=Math.max(0,rivZ-nz*corr);
-      sCar=camZ+CARD;
-      rivX=roadX(rivZ)+rivDrift*ROADH;
-
-      /* A rotated corner can leave a thin sliver on the first axis, and
-         the first correction changes the visual yaw enough to widen the
-         boxes again. Repeat the positional pass with the updated yaw,
-         without applying a second impulse, until the body is clear. */
-      for(var pass=0;pass<3;pass++){
-        var postX=roadX(sCar)+drift*ROADH;
-        var pt=drift*0.13+steerV*0.05+driftV*0.06;
-        var rt=rivDrift*0.13+rivSteer*0.05+rivDriftV*0.06;
-        var post=boxContact(postX,sCar,carHalfW,carHalfL,-pt,
-                            rivX,rivZ,carHalfW,carHalfL,-rt);
-        if(!post.hit||post.pen<=0.05)break;
-        var corr2=Math.max(0,post.pen-0.02)*0.5;
-        drift=Math.max(-1.05,Math.min(1.05,drift+post.nx*corr2/ROADH));
-        rivDrift=Math.max(-1.05,Math.min(1.05,rivDrift-post.nx*corr2/ROADH));
-        camZ=Math.max(0,camZ+post.nz*corr2);
-        rivZ=Math.max(0,rivZ-post.nz*corr2);
-        sCar=camZ+CARD;
-        rivX=roadX(rivZ)+rivDrift*ROADH;
-      }
-
-      var rvx=pVX-rVX,rvz=pVZ-rVZ;
-      var vn=rvx*nx+rvz*nz;
-      var impact=Math.max(0,-vn);
-      if(vn<0){
-        var jn=-(1.12)*vn*0.5;
-        pVX+=nx*jn;pVZ+=nz*jn;
-        rVX-=nx*jn;rVZ-=nz*jn;
-        /* Small tangential friction keeps a side scrape from skating. */
-        var tx=-nz,tz=nx,vt=rvx*tx+rvz*tz;
-        var jt=Math.max(-jn*0.35,Math.min(jn*0.35,-vt*0.5*0.55));
-        pVX+=tx*jt;pVZ+=tz*jt;
-        rVX-=tx*jt;rVZ-=tz*jt;
-      }
-      SPD=Math.max(-REVSPD,Math.min(MAXSPD,pVZ));
-      rivSpd=Math.max(0,Math.min(MAXSPD,rVZ));
-      driftV=Math.max(-1.8,Math.min(1.8,pVX/ROADH));
-      rivDriftV=Math.max(-1.8,Math.min(1.8,rVX/ROADH));
-      rivX=roadX(rivZ)+rivDrift*ROADH;
-      /* First genuine overlap is enough: no 0.8-unit wait before the
-         impact reads. scrapeDamageT avoids doubling up with the scrape. */
-      if(bumpT<=0&&pen>0.01&&!(scrapeT>0&&Math.abs(nx)>Math.abs(nz))){
-        var side=Math.abs(nx)>Math.abs(nz),hardHit=impact>5;
-        var pan=Math.max(-.9,Math.min(.9,-nx));
-        bumpMag=hardHit?Math.min(1,Math.max(side?.25:.16,impact/900)):.10;
-        bumpT=hardHit?.40+.08*bumpMag:.22;
-        impactJolt=Math.max(impactJolt,hardHit?.45+.85*bumpMag:.16);
-        sparkRequest={side:side,nx:nx,nz:nz,mag:bumpMag,x:hit.x,z:hit.z};
-        camKickX=Math.max(-18,Math.min(18,-nx*((hardHit?7:3)+10*bumpMag)));
-        SFX.bump(bumpMag,pan);
-        scrapeBodyContact=true;
-        if(bumpMag>.18||impact>30){
-          addBodyDamage(pDamage,-nx,-nz,bumpMag);
-          addBodyDamage(rDamage,nx,nz,bumpMag);
-          scrapeDamageT=Math.max(scrapeDamageT,.45);
-          dmgFlash=Math.max(dmgFlash,.65);
-        }
+  var nearSide=null,nearCar=null;
+  if(mode!=='idle'&&mode!=='countdown'){
+    for(i=1;i<cars.length;i++){
+      c=cars[i];
+      var near=boxContact(playerCar.x,playerCar.z,cw*.60,carHalfL,
+                          -carTilt(playerCar),c.x,c.z,cw*.60,carHalfL,-carTilt(c));
+      var laneClear=Math.abs(playerCar.x-c.x)>carHalfW*2+6;
+      var scrapeBlocked=mode==='run'&&scrapeEpisodeT<=0&&laneClear;
+      if(near.hit&&Math.abs(near.nx)>Math.abs(near.nz)&&visibleCarsTouch(playerCar,c,1.4)&&!scrapeBlocked){
+        if(!nearSide||near.pen>nearSide.pen){nearSide=near;nearCar=c}
       }
     }
-  }
-  /* Sustained side contact. The boxes are expanded by a couple of units
-     only for this check so the first correction leaving a near-zero seam
-     does not stop the scrape sound/sparks a frame later. */
-  var nearSide=null;
-  if(mode!=='idle'&&mode!=='countdown'){
-    var st=drift*0.13+steerV*0.05+driftV*0.06;
-    var rt=rivDrift*0.13+rivSteer*0.05+rivDriftV*0.06;
-    var spx=roadX(sCar)+drift*ROADH;
-    var srx=roadX(rivZ)+rivDrift*ROADH;
-    var near=boxContact(spx,sCar,carHalfW+2.2,carHalfL+2.2,-st,
-                        srx,rivZ,carHalfW+2.2,carHalfL+2.2,-rt);
-    /* Once a real hit is underway, keep the scrape alive through the small
-       gap opened by separating the boxes; never use that grace before the
-       bodies have visibly met. */
-    if(near.hit&&Math.abs(near.nx)>Math.abs(near.nz)&&
-       (scrapeBodyContact||visibleBodiesTouch(st,rt,1.4)))nearSide=near;
+    /* A side hit is resolved apart immediately, so keep the scrape alive for
+       a moment while the two bodies remain visually alongside each other. */
+    if(!nearSide&&scrapeLatchT>0&&scrapeLatchCar&&
+       !(mode==='run'&&scrapeEpisodeT<=0&&Math.abs(playerCar.x-scrapeLatchCar.x)>carHalfW*2+6)){
+      nearSide={hit:true,latched:true,nx:scrapeLatchNx,nz:scrapeLatchNz,pen:1,x:scrapeLatchX,z:scrapeLatchZ};
+      nearCar=scrapeLatchCar;
+    }
   }
   if(nearSide){
-    scrapeBodyContact=true;
-    if(scrapeT<=0)scrapeTick=0;
-    scrapeT=.06;
-    scrapeX=nearSide.x;scrapeZ=nearSide.z;
+    scrapeBodyContact=true;if(scrapeT<=0)scrapeTick=0;
+    scrapeT=.06;scrapeX=nearSide.x;scrapeZ=nearSide.z;
     scrapeNx=nearSide.nx;scrapeNz=nearSide.nz;
     scrapeMag=Math.max(.16,Math.min(.55,.16+.55*bumpMag));
     scrapePan=Math.max(-.9,Math.min(.9,-nearSide.nx));
-  }else{
-    scrapeT=0;scrapeBodyContact=false;
+  }else{scrapeT=0;scrapeBodyContact=false}
+  var latchEnded=scrapeLatchT>0&&scrapeLatchT-dt<=0,latchCar=scrapeLatchCar;
+  scrapeLatchT=Math.max(0,scrapeLatchT-dt);
+  scrapeEpisodeT=Math.max(0,scrapeEpisodeT-dt);
+  scrapeCooldownT=Math.max(0,scrapeCooldownT-dt);
+  if(latchEnded){scrapeCooldownT=.60}
+  if(latchEnded&&latchCar){
+    addBodyDamage(pDamage,-scrapeLatchNx,-scrapeLatchNz,.18);
+    addBodyDamage(latchCar.damage,scrapeLatchNx,scrapeLatchNz,.18);
+    dmgFlash=Math.max(dmgFlash,.30);
   }
+  if(scrapeLatchT<=0)scrapeLatchCar=null;
   scrapeDamageT=Math.max(0,scrapeDamageT-dt);
   if(scrapeT>0){
     scrapeTick-=dt;
     if(scrapeTick<=0){
-      scrapeTick=.045+Math.random()*.018;
+      scrapeTick=.045+gameRnd()*.018;
       SFX.scrape(scrapeMag,scrapePan);
-      scrapeRequest={side:true,nx:scrapeNx,nz:scrapeNz,mag:scrapeMag,x:scrapeX,z:scrapeZ};
+      fxScrapes.push({side:true,nx:scrapeNx,nz:scrapeNz,mag:scrapeMag,x:scrapeX,z:scrapeZ});
       if(scrapeDamageT<=0){
         addBodyDamage(pDamage,-scrapeNx,-scrapeNz,.18);
-        addBodyDamage(rDamage,scrapeNx,scrapeNz,.18);
-        scrapeDamageT=.55;
-        dmgFlash=Math.max(dmgFlash,.32);
+        if(nearCar)addBodyDamage(nearCar.damage,scrapeNx,scrapeNz,.18);
+        scrapeDamageT=.28;dmgFlash=Math.max(dmgFlash,.32);
       }
     }
   }else scrapeTick=0;
   bumpT=Math.max(0,bumpT-dt);
-
-  camX=roadX(camZ)+0.90*(roadX(sCar)-roadX(camZ));
-  var viewX=camX+camKickX;
-  camKickX*=Math.exp(-dt*12);
-  if(Math.abs(camKickX)<.04)camKickX=0;
-  var carX=roadX(sCar)+drift*ROADH;
-
-  /* Lay rubber when the rear tyres are loaded up, locked or sliding. */
+  camKickX*=Math.exp(-dt*12);if(Math.abs(camKickX)<.04)camKickX=0;
+  var carX=roadX(playerCar.z)+drift*ROADH;
   var skidDemand=mode==='run'&&!offRoad&&Math.abs(SPD)>150&&
-    (Math.abs(drift)>0.28||(keys.d&&Math.abs(SPD)>260)||Math.abs(driftV)>0.72);
+    (Math.abs(drift)>0.28||(cmd.d&&Math.abs(SPD)>260)||Math.abs(driftV)>0.72);
   skidTick-=dt;
-  if(skidDemand){
-    if(skidTick<=0){
-      skidTick=.018;
-      var skidPow=Math.min(1,.42+Math.abs(drift)*.72+(keys.d?.22:0));
-      addSkidMarks(sCar,carX,skidPow,Math.max(10,Math.abs(SPD)*dt*1.35));
-    }
-  }else skidTick=0;
+  if(skidDemand){if(skidTick<=0){skidTick=.018;var skidPow=Math.min(1,.42+Math.abs(drift)*.72+(cmd.d?.22:0));addSkidMarks(playerCar.z,carX,skidPow,Math.max(10,Math.abs(SPD)*dt*1.35))}}else skidTick=0;
+  playerCar.damage=pDamage;
+  raceTransport.sendInput(cmd,Math.round(simTime*60));
+}
 
-  /* SPEED CUES: the camera drops onto the tarmac as you wind it up, and
-     buzzes gently at the top end. HZY is this frame's shaken horizon. */
+function drawRace(alpha,ms,dt){
+  if(!sg)return;
+  alpha=Math.max(0,Math.min(1,alpha));
+  var save={camZ:camZ,CAMH:CAMH,camKickX:camKickX,drift:drift,SPD:SPD,driftV:driftV,steerV:steerV,offRoad:offRoad};
+  var rr={z:rivalCar.z,x:rivalCar.x,spd:rivalCar.spd,drift:rivalCar.drift,driftV:rivalCar.driftV,steer:rivalCar.steer,brake:rivalCar.brake};
+  camZ=prevCamZ+(camZ-prevCamZ)*alpha;
+  CAMH=prevCAMH+(CAMH-prevCAMH)*alpha;
+  camKickX=prevCamKickX+(camKickX-prevCamKickX)*alpha;
+  drift=playerCar.prevDrift+(drift-playerCar.prevDrift)*alpha;
+  SPD=playerCar.prevSpd+(SPD-playerCar.prevSpd)*alpha;
+  driftV=playerCar.prevDriftV+(driftV-playerCar.prevDriftV)*alpha;
+  steerV=playerCar.prevSteer+(steerV-playerCar.prevSteer)*alpha;
+  rivalCar.z=rivalCar.prevZ+(rivalCar.z-rivalCar.prevZ)*alpha;
+  rivalCar.x=rivalCar.prevX+(rivalCar.x-rivalCar.prevX)*alpha;
+  rivalCar.spd=rivalCar.prevSpd+(rivalCar.spd-rivalCar.prevSpd)*alpha;
+  rivalCar.drift=rivalCar.prevDrift+(rivalCar.drift-rivalCar.prevDrift)*alpha;
+  rivalCar.driftV=rivalCar.prevDriftV+(rivalCar.driftV-rivalCar.prevDriftV)*alpha;
+  rivalCar.steer=rivalCar.prevSteer+(rivalCar.steer-rivalCar.prevSteer)*alpha;
+  offRoad=Math.abs(drift)>ONG;
+  var sCar=camZ+CARD;
+  var spdK=Math.max(0,Math.min(1,(Math.abs(SPD)-140)/(MAXSPD-140)));
+  var dmgRatio=Math.min(1,pDamage.length/14);
+  var camX=roadX(camZ)+0.90*(roadX(sCar)-roadX(camZ));
+  var viewX=camX+camKickX;
+  var carX=roadX(sCar)+drift*ROADH;
   var shake=spdK>0.5?Math.round((Math.random()*2-1)*0.9*(spdK-0.5)/0.5):0;
   if(bumpT>0){
     var bumpK=bumpT/.40;
-    shake+=Math.round((Math.random()*2-1)*(1.4+3.6*bumpMag)*bumpK);
+    shake+=Math.round((.55+.45*Math.random())*(1.4+3.6*bumpMag)*bumpK);
     shake+=Math.round(Math.sin(ms/29)*1.3*bumpK);
   }
   if(scrapeT>0)shake+=Math.round((Math.random()*2-1)*.7);
   var HZY=HZ+shake;
-
-  /* Both the initial hit and every scrape tick project from the current
-     body contact point in the same frame the sound and camera kick fire. */
-  if(sparkRequest){addSparksAtContact(sparkRequest,HZY,viewX);sparkRequest=null;}
-  if(scrapeRequest)addSparksAtContact(scrapeRequest,HZY,viewX,7);
+  for(var fi=0;fi<fxSparks.length;fi++)addSparksAtContact(fxSparks[fi],HZY,viewX);
+  for(fi=0;fi<fxScrapes.length;fi++)addSparksAtContact(fxScrapes[fi],HZY,viewX,7);
+  fxSparks.length=0;fxScrapes.length=0;
 
   var y,z,s,i;
   for(y=0;y<RH;y++){
@@ -1635,9 +1749,9 @@ function render(ms){
     }
   }
   nextRivalPuff-=dt;
-  if(mode==='run'&&rivSpd>240&&Math.abs(rivDrift)>.28&&nextRivalPuff<=0&&smoke.length<100){
+  if(mode==='run'&&rivalCar.spd>240&&Math.abs(rivalCar.drift)>.28&&nextRivalPuff<=0&&smoke.length<100){
     nextRivalPuff=.06;
-    var rvSmoke=rivalProjection(HZY,viewX);
+    var rvSmoke=carProjection(rivalCar,HZY,viewX);
     if(rvSmoke){
       for(i=0;i<2;i++){
         smoke.push({x:rvSmoke.x+(i?1:-1)*CARW*.42*rvSmoke.sc,y:rvSmoke.y-2,
@@ -1662,19 +1776,40 @@ function render(ms){
 
   /* The player's car is always the foreground layer. A rival that has just
      dropped behind slides under it and off the bottom instead of popping. */
-  var rzDraw=rivZ-camZ,showRival=(mode!=='idle');
-  if(showRival&&rzDraw>=40)drawRival(HZY,viewX);
+  var rzDraw=rivalCar.z-camZ,showRival=(mode!=='idle');
+  if(showRival&&rzDraw>=40)drawOpponent(rivalCar,HZY,viewX);
   var dmgVibe=dmgRatio>.25?Math.sin(ms/37)*(0.18+0.75*dmgRatio):0;
   var misfireVibe=misfireCut>0?Math.sin(ms/15)*(0.9+1.3*dmgRatio):0;
   var carTilt=drift*0.13+steerV*0.05+driftV*0.06+(misfireCut>0?Math.sin(ms/11)*.018:0);
   drawCar(RW*0.5+(carX-viewX)*FOC/CARD,Math.round(RH*0.80)+Math.sin(ms/104)*(0.18+0.55*spdK)*Math.min(1,Math.abs(SPD)/260)+dmgVibe+misfireVibe,carTilt,pDamage);
   drawSparks(dt);
 
+
+  camZ=save.camZ;CAMH=save.CAMH;camKickX=save.camKickX;
+  drift=save.drift;SPD=save.SPD;driftV=save.driftV;steerV=save.steerV;offRoad=save.offRoad;
+  rivalCar.z=rr.z;rivalCar.x=rr.x;rivalCar.spd=rr.spd;rivalCar.drift=rr.drift;
+  rivalCar.driftV=rr.driftV;rivalCar.steer=rr.steer;rivalCar.brake=rr.brake;
+}
+
+var lastFrameMs=0;
+function render(ms){
+  if(!sg)return;
+  if(!lastFrameMs)lastFrameMs=ms;
+  var frameDt=Math.min(.05,(ms-lastFrameMs)/1000);lastFrameMs=ms;
+  simAccum+=frameDt;
+  var steps=0;
+  while(simAccum>=FIXED_DT&&steps<4){
+    stepRace(FIXED_DT,raceTransport.input(keys));
+    simAccum-=FIXED_DT;steps++;
+  }
+  if(steps===4&&simAccum>FIXED_DT)simAccum=FIXED_DT;
+  drawRace(simAccum/FIXED_DT,ms,frameDt);
   engineUpdate();
   drawHud();
   requestAnimationFrame(render);
 }
 if(sg)requestAnimationFrame(render);
+
 
 /* ── DRIVING CONTROLS ── */
 var keyMap={ArrowLeft:'l',KeyA:'l',ArrowRight:'r',KeyD:'r',ArrowUp:'u',KeyW:'u',ArrowDown:'d',KeyS:'d'};
