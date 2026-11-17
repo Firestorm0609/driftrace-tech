@@ -306,6 +306,7 @@ body.theatre .top .muted,body.theatre .top .usd{display:none}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
 <script>
+
 (function(){
 "use strict";
 
@@ -313,6 +314,22 @@ body.theatre .top .muted,body.theatre .top .usd{display:none}
 var CONTRACT='0x796c16af215C6f4c34d39cea9279c0aC79DF609e';
 var CHAIN={chainId:'0xB626',chainName:'Robinhood Chain Testnet',nativeCurrency:{name:'ETH',symbol:'ETH',decimals:18},rpcUrls:['https://robinhood-testnet.g.alchemy.com/v2/AUGVJZWHgMFRdBn7xeexx'],blockExplorerUrls:['https://explorer.testnet.chain.robinhood.com']};
 var ABI=['function currentRaceId() external view returns (uint256)','function getRace(uint256) external view returns (uint256,uint256,uint256,uint256,bytes32,bytes32,bool,bool,bool,uint8,uint256,uint256)','function getBetCount(uint256) external view returns (uint256)','function getDriverBetCount(uint256,uint8) external view returns (uint256)','function timeUntilBettingEnds(uint256) external view returns (uint256)','function placeBet(uint256,uint8) external payable'];
+
+/* Multiplayer is opt-in with ?room=CODE. ?mp=1 uses the PUBLIC room.
+   The override makes the local two-browser test independent of production TLS. */
+function qparam(name){
+  var m=new RegExp('[?&]'+name+'=([^&]*)').exec(location.search||'');
+  return m?decodeURIComponent(m[1].replace(/\+/g,' ')):'';
+}
+var MP_ROOM=(qparam('room')||(qparam('mp')?'PUBLIC':'')).toUpperCase().replace(/[^A-Z0-9_-]/g,'').slice(0,12);
+/* The race server is published at race.driftrace.tech through a named
+   Cloudflare Tunnel and also serves this page, so same-origin WSS is used
+   whenever the page is opened there. A page hosted elsewhere (Vercel) falls
+   back to the stable tunnel endpoint. Override either with ?ws=. */
+var MP_SERVER=qparam('ws')||(location.protocol==='https:'?
+  (/\.trycloudflare\.com$/.test(location.hostname)||/\.sslip\.io$/.test(location.hostname)||/^race\./.test(location.hostname)?
+    'wss://'+location.host+'/ws':'wss://race.driftrace.tech/ws'):
+  'ws://127.0.0.1:8788/ws');
 var D=['VIPER','PHANTOM','BLAZE','NEON','STORM','SHADOW','TITAN','RAPTOR','SURGE','FROST'];
 var DC=[
   {fill:'#ff1744',stroke:'#ff5252'},
@@ -331,6 +348,17 @@ var DC=[
 function $(id){return document.getElementById(id)}
 function sleep(ms){return new Promise(function(r){setTimeout(r,ms)})}
 function rand(a,b){return Math.floor(Math.random()*(b-a+1))+a}
+function setMpStatus(msg,event){
+  var el=$('chat');
+  if(el){el.textContent=msg;if(event){el.classList.add('event')}}
+  var st=$('raceStatus');if(st)st.textContent='MP';
+}
+function stopNetworkRace(msg){
+  if(mode==='run'||mode==='countdown'||mode==='done'||mode==='timeup'){
+    mode='idle';countT=0;hideResults();
+  }
+  setMpStatus(msg);
+}
 
 /* ── SOUND ── */
 var audioCtx,soundEnabled=true;
@@ -627,8 +655,13 @@ function bigText(txt,y,col){
 function drawHud(){
   var left=Math.max(0,finishZ-camZ-CARD);
   if(mode==='idle'){
-    shadeText('PRESS ENTER TO DRIVE',RW*0.5,RH*0.42,'#eaf6d2','center');
-    shadeText('\u2190 \u2192 steer    \u2191 \u2193 speed',RW*0.5,RH*0.42+12,'#a9c98c','center');
+    if(MP_ROOM){
+      shadeText('MULTIPLAYER '+MP_ROOM,RW*0.5,RH*0.42,'#eaf6d2','center');
+      shadeText('WAITING FOR THE GRID',RW*0.5,RH*0.42+12,'#a9c98c','center');
+    }else{
+      shadeText('PRESS ENTER TO DRIVE',RW*0.5,RH*0.42,'#eaf6d2','center');
+      shadeText('\u2190 \u2192 steer    \u2191 \u2193 speed',RW*0.5,RH*0.42+12,'#a9c98c','center');
+    }
     return;
   }
   shadeText('TIME '+fmtT(mode==='run'?runT:runEnd),4,4,(mode==='run'&&runT>50)?'#ff8a4a':'#eaf6d2');
@@ -656,12 +689,16 @@ function drawHud(){
   if(mode==='run'&&rivalCar.done)shadeText('RIVAL FINISHED',RW*0.5,36,'#ff6a4a','center');
   if(mode==='done')shadeText((raceWon?'P1  YOU WIN':'P2  RIVAL WINS')+'  '+fmtT(runEnd),RW*0.5,RH*0.40,raceWon?'#ccff00':'#ff7a3d','center');
   if(mode==='timeup')shadeText('TIME UP',RW*0.5,RH*0.40,'#ff7a3d','center');
-  if(mode==='done'||mode==='timeup')shadeText('PRESS ENTER TO RUN AGAIN',RW*0.5,RH*0.40+13,'#a9c98c','center');
+  if(mode==='done'||mode==='timeup')shadeText(MP_ROOM?'REMATCH INCOMING':'PRESS ENTER TO RUN AGAIN',RW*0.5,RH*0.40+13,'#a9c98c','center');
 }
-function startRun(){
+function startRun(opts){
+  opts=opts||{};
   if(mode==='run'||mode==='countdown')return;
+  if(raceTransport.kind==='socket'&&!opts.network)return;
   hideResults();
-  mode='countdown';countT=3;countStep=3;startFlash=0;
+  if(opts.startZ!==undefined)camZ=Math.max(0,+opts.startZ-CARD);
+  var startT=opts.startAt?Math.max(0,(+opts.startAt-Date.now())/1000):3;
+  mode='countdown';countT=startT;countStep=Math.ceil(startT)||1;startFlash=0;
   runT=0;runEnd=0;steerV=0;drift=-0.58;SPD=0;raceWon=false;
   runTopSpd=0;finishKind='';dmgFlash=0;
   misfireT=.9;misfireCut=0;misfirePuff=false;impactJolt=0;
@@ -679,6 +716,7 @@ function startRun(){
   pDamage=[];rivalCar.damage=[];playerCar.damage=pDamage;damageSmoke=[];nextDamageSmoke=0;
   smoke=[];sparks=[];STK.length=0;nextPuff=0;fumes=[];nextFume=0;
   skids=[];skidTick=0;nextRivalPuff=0;fxSparks.length=0;fxScrapes.length=0;
+  if(opts.seed!==undefined)raceTransport.seed=+opts.seed;
   seedGameplay(raceTransport.seed);raceTransport.begin();
   rivalCar.ai=raceTransport.kind==='local';
   simAccum=0;simTime=0;primeCarSnapshots();
@@ -731,6 +769,29 @@ function finishRun(kind){
   mode=kind==='timeup'?'timeup':'done';
   showResults();
   if(raceWon)SFX.win();else SFX.error();
+}
+function setNetDamage(marks,n){
+  n=Math.max(0,Math.min(14,n|0));
+  while(marks.length>n)marks.pop();
+  while(marks.length<n)marks.push({x:(marks.length%2?1:-1),y:-CARW*.3,w:2,h:3,dent:false});
+}
+function finishNetworkRace(m){
+  if(mode==='done'||mode==='timeup')return;
+  var me=raceTransport.slot||'p1',other=me==='p1'?'p2':'p1';
+  var mine=(m.cars||[]).filter(function(c){return c.id===me})[0];
+  var opp=(m.cars||[]).filter(function(c){return c.id===other})[0];
+  if(mine){
+    runEnd=+mine.finishT||+m.raceT||RUNTIME;
+    runTopSpd=Math.max(runTopSpd,Math.abs(+mine.spd||0));
+    setNetDamage(pDamage,mine.damage);playerCar.damage=pDamage;
+  }
+  if(opp){applyRemoteState(rivalCar,opp);rivalCar.done=!!opp.done;rivalCar.finishT=+opp.finishT||0;}
+  finishKind=m.reason==='timeup'?'timeup':'finish';
+  raceWon=m.winnerId===me;
+  mode=finishKind==='timeup'?'timeup':'done';
+  if(raceWon)SFX.win();else SFX.error();
+  showResults();
+  setMpStatus('MP '+raceTransport.room+' // '+(raceWon?'YOU WIN':'RIVAL WINS'));
 }
 
 /* Two liveries from one sprite: the player's blue and the rival's red. */
@@ -794,6 +855,7 @@ function applyRemoteState(car,s){
   car.spd=+s.spd||0;car.drift=+s.drift||0;car.driftV=+s.driftV||0;
   car.steer=+s.steer||0;car.brake=!!s.brake;car.done=!!s.done;car.finishT=+s.finishT||0;
   if(s.damage&&s.damage.length)car.damage=s.damage.slice(0,14);
+  else if(typeof s.damage==='number')setNetDamage(car.damage,s.damage);
 }
 function LocalTransport(seed){
   return{kind:'local',seed:(seed||RACE_SEED)>>>0,begin:function(){},input:keyboardInput,
@@ -818,28 +880,61 @@ function ReplayTransport(frames,seed){
       }
     }};
 }
-function SocketTransport(url,seed){
-  var ws=null,latest={};
-  function applyMessage(ev){
-    var m;try{m=JSON.parse(ev.data)}catch(e){return}
-    if(m.type==='state'&&m.cars){
-      for(var i=0;i<m.cars.length;i++)if(m.cars[i].id)latest[m.cars[i].id]=m.cars[i];
-    }else if(m.type==='state'&&m.id)latest[m.id]=m;
+function SocketTransport(url,seed,room){
+  var ws=null,latest={},reconnectTimer=null,attempts=0,closed=false;
+  var api={kind:'socket',room:room,seed:(seed||RACE_SEED)>>>0,slot:null,connected:false,
+    begin:connect,input:keyboardInput,sendInput:sendInput,update:update,close:function(){closed=true;if(ws)ws.close()}};
+  function send(msg){
+    if(ws&&ws.readyState===1)ws.send(JSON.stringify(msg));
   }
   function connect(){
-    if(ws||!url||typeof WebSocket==='undefined')return;
-    try{ws=new WebSocket(url);ws.onmessage=applyMessage}catch(e){ws=null}
+    if(closed||!url||typeof WebSocket==='undefined')return;
+    if(ws&&(ws.readyState===0||ws.readyState===1))return;
+    try{
+      ws=new WebSocket(url+(url.indexOf('?')<0?'?':'&')+'room='+encodeURIComponent(room));
+      ws.onopen=function(){api.connected=true;send({type:'join',room:room});setMpStatus('MP '+room+' // CONNECTED // WAITING');};
+      ws.onmessage=onMessage;
+      ws.onerror=function(){};
+      ws.onclose=function(){
+        api.connected=false;
+        if(!closed&&attempts<2){attempts++;reconnectTimer=setTimeout(connect,1200)}
+        else if(!closed)setMpStatus('MP '+room+' // CONNECTION LOST');
+      };
+    }catch(e){ws=null;setMpStatus('MP '+room+' // CONNECT FAILED');}
   }
-  return{kind:'socket',seed:(seed||RACE_SEED)>>>0,begin:connect,input:keyboardInput,
-    sendInput:function(input,seq){if(ws&&ws.readyState===1)ws.send(JSON.stringify({type:'input',seq:seq,input:input}))},
-    update:function(list){
-      for(var i=0;i<list.length;i++){
-        var c=list[i];if(c.isPlayer)continue;
-        var s=latest[c.id]||latest.rival;if(s)applyRemoteState(c,s);
-      }
-    }};
+  function onMessage(ev){
+    var m;try{m=JSON.parse(ev.data)}catch(e){return}
+    if(m.type==='joined'){
+      api.slot=m.playerId;api.seed=m.seed;api.room=m.room||room;
+      var seedEl=$('seed');if(seedEl)seedEl.textContent=room;
+      setMpStatus('MP '+room+' // '+m.playerId.toUpperCase()+' // WAITING FOR RIVAL');
+      window.__mpStats={room:room,slot:api.slot,phase:m.phase||'waiting',tick:0,cars:[]};
+    }else if(m.type==='start'){
+      api.seed=m.seed;
+      setMpStatus('MP '+room+' // '+String(api.slot||'').toUpperCase()+' // RACE START');
+      startRun({network:true,seed:m.seed,startAt:m.startAt,startZ:m.startZ});
+    }else if(m.type==='state'&&m.cars){
+      for(var i=0;i<m.cars.length;i++)if(m.cars[i].id)latest[m.cars[i].id]=m.cars[i];
+      window.__mpStats={room:room,slot:api.slot,tick:m.tick,phase:m.phase,raceT:m.raceT,cars:m.cars};
+    }else if(m.type==='finish'){
+      window.__mpStats={room:room,slot:api.slot,phase:'finished',tick:0,cars:m.cars||[]};
+      finishNetworkRace(m);
+    }else if(m.type==='aborted'||m.type==='peerLeft'){
+      stopNetworkRace('MP '+room+' // '+(m.reason==='peer-left'?'RIVAL LEFT':'WAITING'));
+    }else if(m.type==='error'){
+      setMpStatus('MP '+room+' // '+(m.message||'ERROR'));
+    }
+  }
+  function sendInput(input,seq){send({type:'input',seq:seq,input:input})}
+  function update(){
+    if(!api.slot)return;
+    var other=api.slot==='p1'?'p2':'p1',s=latest[other]||latest.rival;
+    if(s)applyRemoteState(rivalCar,s);
+  }
+  return api;
 }
-var raceTransport=new LocalTransport(RACE_SEED);
+var raceTransport=MP_ROOM?new SocketTransport(MP_SERVER,RACE_SEED,MP_ROOM):new LocalTransport(RACE_SEED);
+if(MP_ROOM){setMpStatus('MP '+MP_ROOM+' // CONNECTING');raceTransport.begin();}
 
 /* Scuffs and dents live in the car's local space, so they rotate and scale
    with the body. Hard hits add the first marks; sustained scrapes add more. */
@@ -1493,7 +1588,7 @@ function stepRace(dt,inputs){
   }else{
     if(mode==='run'){
       runT+=dt;if(Math.abs(SPD)>runTopSpd)runTopSpd=Math.abs(SPD);
-      if(runT>=RUNTIME)finishRun('timeup');
+      if(runT>=RUNTIME&&raceTransport.kind!=='socket')finishRun('timeup');
     }
     var sIn=(mode==='run')?((cmd.l?-1:0)+(cmd.r?1:0)):0;
     steerV+=(sIn-steerV)*(1-Math.exp(-dt*14));
@@ -1516,7 +1611,7 @@ function stepRace(dt,inputs){
       if(SPD>capF)SPD=Math.max(capF,SPD-620*dt);
       if(SPD<-capR)SPD=Math.min(-capR,SPD+620*dt);
       if(Math.abs(SPD)>runTopSpd)runTopSpd=Math.abs(SPD);
-      if(sCar>=finishZ)finishRun('finish');
+      if(sCar>=finishZ&&raceTransport.kind!=='socket')finishRun('finish');
     }else SPD=Math.max(0,SPD-150*dt);
   }
   syncPlayerCar();
@@ -1892,6 +1987,7 @@ build();
 
 /* ── AGENT CHAT ── */
 function agentSay(msg,isEvent){
+  if(MP_ROOM&&!isEvent)return;
   var el=$('chat');el.textContent=msg;
   if(isEvent){el.classList.add('event');$('scrL').classList.add('flash');$('scrR').classList.add('flash');setTimeout(function(){el.classList.remove('event');$('scrL').classList.remove('flash');$('scrR').classList.remove('flash')},2000)}
 }

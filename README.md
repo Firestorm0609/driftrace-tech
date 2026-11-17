@@ -110,6 +110,27 @@ Launching via PONS Launchpad on Robinhood Chain.
 - **Chain ID:** 46630 (testnet) / 4663 (mainnet)
 - **Explorer:** [robinhoodchain.blockscout.com](https://robinhoodchain.blockscout.com)
 
+## Multiplayer
+
+Two-player races use the separate authoritative WebSocket service in
+[`server/`](server/README.md). Open a room with `?room=CODE`; without that
+parameter the original local mode is unchanged. The public route is a named
+Cloudflare Tunnel:
+
+```text
+https://race.driftrace.tech/?room=CODE
+```
+
+The VPS service serves both the page and `/ws` on that hostname, so the page
+uses same-origin `wss://race.driftrace.tech/ws`. A page opened on the Vercel
+domain (`https://driftrace.tech/?room=CODE`) falls back to the same stable
+tunnel endpoint, and `?ws=` overrides it. The backend runs as
+`driftrace-race.service` and the tunnel as `cloudflared.service`, both on the
+VPS.
+
+See [`server/README.md`](server/README.md) for service, proxy, and two-browser
+test commands.
+
 ## License
 
 MIT

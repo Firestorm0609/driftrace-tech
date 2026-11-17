@@ -1,0 +1,12 @@
+{
+  "name": "driftrace-multiplayer-tests",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Two-browser end-to-end tests for the authoritative race server",
+  "scripts": {
+    "test": "node multiplayer.e2e.js"
+  },
+  "devDependencies": {
+    "playwright": "1.49.1"
+  }
+}

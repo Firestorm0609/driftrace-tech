@@ -1,0 +1,27 @@
+[Unit]
+Description=DRIFT authoritative race server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/root/op/driftrace-tech/server
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=8788
+EnvironmentFile=-/etc/driftrace-race.env
+ExecStart=/usr/local/bin/node /root/op/driftrace-tech/server/race-server.js
+Restart=always
+RestartSec=2
+LimitNOFILE=4096
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=false
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

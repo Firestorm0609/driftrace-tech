@@ -1,0 +1,10 @@
+# Public TLS/WSS entry point for the loopback-only race server.
+# Caddy obtains the certificate for this sslip.io name automatically.
+8-221-120-192.sslip.io {
+	encode zstd gzip
+
+	reverse_proxy /ws* 127.0.0.1:8788
+	reverse_proxy /health 127.0.0.1:8788
+
+	respond "driftrace-race: upgrade /ws" 404
+}
