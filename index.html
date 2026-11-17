@@ -415,6 +415,7 @@ function engineUpdate(){
 var SCV=$('scene'),sg=SCV?SCV.getContext('2d'):null;
 var RW=336,RH=287,PXPX=3,CARW=46;
 var CAMH=520,FOC=260,ROADH=132,SPD=250,CARD=480,HZ=-52;
+var pov=false;   /* C flips between the chase camera and the driver's seat */
 var XS=new Float32Array(1400),HS=new Float32Array(1400);
 
 if(SCV){SCV.width=RW;SCV.height=RH;SCV.style.imageRendering='pixelated';if(sg)sg.imageSmoothingEnabled=false;}
@@ -455,7 +456,7 @@ var ASPH=(function(){
   return sg?sg.createPattern(c,'repeat'):null;
 })();
 
-var camZ=0,camX=roadX(0),drift=0;
+var camZ=0,drift=0;
 var smoke=[],nextPuff=0;
 
 /* ── MANUAL RUN ──
@@ -480,9 +481,11 @@ function drawHud(){
   if(mode==='idle'){
     shadeText('PRESS ENTER TO DRIVE',RW*0.5,RH*0.42,'#eaf6d2','center');
     shadeText('\u2190 \u2192 steer    \u2191 \u2193 speed',RW*0.5,RH*0.42+12,'#a9c98c','center');
+    shadeText('C  camera',RW*0.5,RH*0.42+24,'#a9c98c','center');
     return;
   }
   shadeText('TIME '+fmtT(mode==='run'?runT:runEnd),4,4,(mode==='run'&&runT>50)?'#ff8a4a':'#eaf6d2');
+  shadeText(pov?'CAM POV':'CAM CHASE',4,25,'#a9c98c');
   var kmh=Math.round(SPD/MAXSPD*HUDTOP);
   shadeText((SPD<-1?'R '+Math.abs(kmh):kmh)+' KM/H',RW-4,4,offRoad?'#ffb27a':'#ccff00','right');
   var gl=SPD<-1?'R':String(gearAt(Math.abs(SPD)/MAXSPD).g);
@@ -620,7 +623,7 @@ function drawCar(cx,cy,tilt){
    projected like everything else, so it flies out of the vanishing point */
 var STK=[];
 function newStreak(){return{side:Math.random()<0.5?-1:1,off:1.8+Math.random()*3.0,z:1200+Math.random()*2600}}
-function drawStreaks(dt,spdK,HZY){
+function drawStreaks(dt,spdK,HZY,vz,vx){
   if(!STK.length&&spdK>0.10)for(var n=0;n<90;n++)STK.push(newStreak());
   if(!STK.length)return;
   var live=Math.min(1,spdK*2.4);
@@ -629,8 +632,8 @@ function drawStreaks(dt,spdK,HZY){
     s.z-=SPD*dt;
     if(s.z<120||s.z>4200){STK[i]=newStreak();continue}
     var z1=s.z,z2=s.z+90+Math.abs(SPD)*0.58;
-    var x1=RW*0.5+(roadX(camZ+z1)+s.side*ROADH*s.off-camX)*FOC/z1;
-    var x2=RW*0.5+(roadX(camZ+z2)+s.side*ROADH*s.off-camX)*FOC/z2;
+    var x1=RW*0.5+(roadX(vz+z1)+s.side*ROADH*s.off-vx)*FOC/z1;
+    var x2=RW*0.5+(roadX(vz+z2)+s.side*ROADH*s.off-vx)*FOC/z2;
     var y1=HZY+FOC*CAMH/z1,y2=HZY+FOC*CAMH/z2;
     if(y1>RH+6||y2<HZY||(x1<-24&&x2<-24)||(x1>RW+24&&x2>RW+24))continue;
     var a=(0.12+0.40*(1-(z1-120)/4100))*live;
@@ -639,6 +642,37 @@ function drawStreaks(dt,spdK,HZY){
     for(var t=0;t<=dn;t++){var u=t/dn;
       sg.fillRect(Math.round(x1+dx*u),Math.round(y1+dy*u),1,1);}
   }
+}
+
+/* ── COCKPIT ──
+   The driver's seat: a dark cowl, two live dials and a wheel that answers
+   the steering, laid over the road instead of the car sprite. */
+function drawCockpit(spdK){
+  var gi=gearAt(Math.abs(SPD)/MAXSPD),cx=RW*0.5,wob=steerV*6,r=Math.round(RW*0.17);
+  sg.fillStyle='#0b0d14';
+  sg.beginPath();
+  sg.moveTo(0,RH);sg.lineTo(0,RH-28);
+  sg.quadraticCurveTo(RW*0.5,RH-54,RW,RH-28);
+  sg.lineTo(RW,RH);sg.closePath();sg.fill();
+  sg.fillStyle='#1c2130';sg.fillRect(0,RH-28,RW,2);
+  function dial(x,y,fr,col){
+    sg.fillStyle='#06070b';sg.beginPath();sg.arc(x,y,10,0,Math.PI*2);sg.fill();
+    sg.strokeStyle='#3b4150';sg.lineWidth=1;sg.stroke();
+    var a=Math.PI*0.75+Math.max(0,Math.min(1,fr))*Math.PI*1.5;
+    sg.strokeStyle=col;sg.beginPath();sg.moveTo(x,y);
+    sg.lineTo(x+Math.cos(a)*7,y+Math.sin(a)*7);sg.stroke();
+  }
+  dial(Math.round(cx-30),RH-15,spdK,'#ccff00');
+  dial(Math.round(cx+30),RH-15,gi.rpm,'#ff9e40');
+  /* the wheel sits in front of the dials and turns with the input */
+  sg.save();
+  sg.translate(Math.round(cx+wob),RH+12);
+  sg.rotate(steerV*0.16);
+  sg.strokeStyle='#282d3a';sg.lineWidth=7;
+  sg.beginPath();sg.arc(0,0,r,Math.PI*1.12,Math.PI*1.88);sg.stroke();
+  sg.strokeStyle='#3e4557';sg.lineWidth=2;
+  sg.beginPath();sg.arc(0,0,r-3,Math.PI*1.16,Math.PI*1.84);sg.stroke();
+  sg.restore();
 }
 
 function render(ms){
@@ -697,27 +731,39 @@ function render(ms){
 
   camZ+=SPD*dt;
   if(camZ<0){camZ=0;if(SPD<0)SPD=0;}
-  camX=roadX(camZ)+0.90*(roadX(sCar)-roadX(camZ));
   var carX=roadX(sCar)+drift*ROADH;
+  var visZ=camZ+(pov?CARD:0);
+  var visX=pov?carX:roadX(camZ)+0.90*(roadX(sCar)-roadX(camZ));
 
   /* SPEED CUES: the camera drops onto the tarmac as you wind it up, and
      starts to buzz at the top end. HZY is this frame's shaken horizon. */
   var spdK=Math.max(0,Math.min(1,(Math.abs(SPD)-140)/(MAXSPD-140)));
-  CAMH=520-72*spdK*spdK-9*gearJolt;
+  CAMH=pov?170-24*spdK*spdK-8*gearJolt:520-72*spdK*spdK-9*gearJolt;
   var shake=spdK>0.5?Math.round((Math.random()*2-1)*2.0*(spdK-0.5)/0.5):0;
-  var HZY=HZ+shake;
+  var HZY=(pov?Math.round(RH*0.30):HZ)+shake;
 
   var y,z,s,i;
   for(y=0;y<RH;y++){
+    if(y<=HZY){HS[y]=0;XS[y]=RW*0.5;continue;}
     z=FOC*CAMH/(y-HZY);
-    s=camZ+z;
-    XS[y]=RW*0.5+(roadX(s)-camX)*FOC/z;
+    s=visZ+z;
+    XS[y]=RW*0.5+(roadX(s)-visX)*FOC/z;
     HS[y]=ROADH*FOC/z;
   }
-  /* grass: one flat green, with faint mown stripes that drift toward us */
-  sg.fillStyle='#63a83f';sg.fillRect(0,0,RW,RH);
-  for(y=0;y<RH;y++){
-    s=camZ+FOC*CAMH/(y-HZY);
+  /* grass under the road, sky above it once you are in the driver's seat */
+  if(pov){
+    var skyB=['#a9cfdd','#b9d7dd','#cae1d6','#dcebd4'],bh=Math.max(1,Math.round(HZY/4));
+    for(i=0;i<4;i++){sg.fillStyle=skyB[i];sg.fillRect(0,i*bh,RW,bh+1);}
+    sg.fillStyle='#4f7f38';sg.fillRect(0,HZY-4,RW,5);
+    for(i=0;i<RW;i+=6){
+      if(((i*7)%5)<2){sg.fillStyle='#3f6b2d';sg.fillRect(i,HZY-7+((i*3)%3),3,4);}
+    }
+    sg.fillStyle='#63a83f';sg.fillRect(0,Math.max(0,HZY),RW,RH-Math.max(0,HZY));
+  }else{
+    sg.fillStyle='#63a83f';sg.fillRect(0,0,RW,RH);
+  }
+  for(y=Math.max(0,HZY);y<RH;y++){
+    s=visZ+FOC*CAMH/(y-HZY);
     if(Math.floor(s/58)&1){sg.fillStyle='rgba(0,30,0,.05)';sg.fillRect(0,y,RW,1);}
   }
   /* the asphalt itself: one polygon, filled with a scrolling grain */
@@ -733,14 +779,14 @@ function render(ms){
   }
   sg.closePath();
   if(ASPH){
-    try{ASPH.setTransform(new DOMMatrix([1,0,0,1,0,(camZ*0.6)%32]));}catch(e){}
+    try{ASPH.setTransform(new DOMMatrix([1,0,0,1,0,(visZ*0.6)%32]));}catch(e){}
     sg.fillStyle=ASPH;
   }else sg.fillStyle='#3a3a45';
   sg.fill();
   /* kerbs, centre dashes and tar seams, still one row at a time */
   for(y=0;y<RH;y++){
     var hw=HS[y];if(hw<0.7)continue;
-    s=camZ+FOC*CAMH/(y-HZY);
+    s=visZ+FOC*CAMH/(y-HZY);
     var x0=Math.round(XS[y]-hw),w=Math.max(1,Math.round(hw*2));
     var kw=Math.max(1,Math.round(hw*0.14));
     sg.fillStyle=(Math.floor(s/26)&1)?'#e9e9e6':'#cf3b34';
@@ -754,18 +800,24 @@ function render(ms){
       sg.fillStyle='rgba(20,20,26,.35)';sg.fillRect(x0+kw,y,w-kw*2,1);
     }
   }
-  /* distance haze over the top of the road */
-  var hz=Math.round(RH*0.16);
-  var gr=sg.createLinearGradient(0,0,0,hz);
-  gr.addColorStop(0,'rgba(203,220,196,.75)');gr.addColorStop(1,'rgba(203,220,196,0)');
-  sg.fillStyle=gr;sg.fillRect(0,0,RW,hz);
+  /* distance haze sits over the top of the road, or just past the horizon */
+  if(pov){
+    var gr=sg.createLinearGradient(0,HZY,0,HZY+38);
+    gr.addColorStop(0,'rgba(203,220,196,.55)');gr.addColorStop(1,'rgba(203,220,196,0)');
+    sg.fillStyle=gr;sg.fillRect(0,Math.max(0,HZY),RW,38);
+  }else{
+    var hz=Math.round(RH*0.16);
+    var gr2=sg.createLinearGradient(0,0,0,hz);
+    gr2.addColorStop(0,'rgba(203,220,196,.75)');gr2.addColorStop(1,'rgba(203,220,196,0)');
+    sg.fillStyle=gr2;sg.fillRect(0,0,RW,hz);
+  }
 
   /* chequered finish: a strip on the tarmac plus a gantry to read it early */
-  var zf=finishZ-camZ;
+  var zf=finishZ-visZ;
   if(mode!=='idle'&&zf>34){
     var fsc=FOC/zf;
     var yG=HZY+FOC*CAMH/zf,yG2=HZY+FOC*CAMH/(zf+34);
-    var xF=RW*0.5+(roadX(finishZ)-camX)*fsc,hwF=ROADH*fsc;
+    var xF=RW*0.5+(roadX(finishZ)-visX)*fsc,hwF=ROADH*fsc;
     if(yG<RH+40&&yG2>0){
       var fTop=Math.max(0,Math.round(yG2)),fBot=Math.min(RH,Math.round(yG)+1);
       var cols=8,cw=(hwF*2)/cols,cx2,cy2;
@@ -790,26 +842,29 @@ function render(ms){
     }
   }
 
-  drawStreaks(dt,spdK,HZY);
+  drawStreaks(dt,spdK,HZY,visZ,visX);
 
   /* tyre smoke behind the car */
   nextPuff-=dt;
-  if(Math.abs(drift)>0.20&&nextPuff<=0&&smoke.length<50){
-    nextPuff=.035;
-    for(i=0;i<2;i++){
-      smoke.push({x:RW*0.5+(carX-camX)*FOC/CARD+(i?1:-1)*CARW*0.42,y:RH*0.80-2,
-                  vx:(i?1:-1)*(14+Math.random()*16),vy:-6-Math.random()*10,r:1.4,a:.5});
+  if(!pov){
+    if(Math.abs(drift)>0.20&&nextPuff<=0&&smoke.length<50){
+      nextPuff=.035;
+      for(i=0;i<2;i++){
+        smoke.push({x:RW*0.5+(carX-visX)*FOC/CARD+(i?1:-1)*CARW*0.42,y:RH*0.80-2,
+                    vx:(i?1:-1)*(14+Math.random()*16),vy:-6-Math.random()*10,r:1.4,a:.5});
+      }
+    }
+    for(i=smoke.length-1;i>=0;i--){
+      var p=smoke[i];
+      p.x+=p.vx*dt;p.y+=p.vy*dt;p.r+=7*dt;p.a-=0.75*dt;
+      if(p.a<=0){smoke.splice(i,1);continue}
+      sg.fillStyle='rgba(228,231,234,'+p.a.toFixed(2)+')';
+      sg.fillRect(Math.round(p.x-p.r),Math.round(p.y-p.r),Math.round(p.r*2),Math.round(p.r*2));
     }
   }
-  for(i=smoke.length-1;i>=0;i--){
-    var p=smoke[i];
-    p.x+=p.vx*dt;p.y+=p.vy*dt;p.r+=7*dt;p.a-=0.75*dt;
-    if(p.a<=0){smoke.splice(i,1);continue}
-    sg.fillStyle='rgba(228,231,234,'+p.a.toFixed(2)+')';
-    sg.fillRect(Math.round(p.x-p.r),Math.round(p.y-p.r),Math.round(p.r*2),Math.round(p.r*2));
-  }
 
-  drawCar(RW*0.5+(carX-camX)*FOC/CARD,Math.round(RH*0.80)+Math.sin(ms/72)*(0.35+1.15*spdK)*Math.min(1,Math.abs(SPD)/260),drift*0.13+steerV*0.05);
+  if(pov)drawCockpit(spdK);
+  else drawCar(RW*0.5+(carX-visX)*FOC/CARD,Math.round(RH*0.80)+Math.sin(ms/72)*(0.35+1.15*spdK)*Math.min(1,Math.abs(SPD)/260),drift*0.13+steerV*0.05);
 
   engineUpdate();
   drawHud();
@@ -822,6 +877,11 @@ var keyMap={ArrowLeft:'l',KeyA:'l',ArrowRight:'r',KeyD:'r',ArrowUp:'u',KeyW:'u',
 document.addEventListener('keydown',function(e){
   var k=keyMap[e.code];
   if(k){keys[k]=1;e.preventDefault();return;}
+  if(e.code==='KeyC'){
+    var tg=e.target&&e.target.tagName;
+    if(tg!=='INPUT'&&tg!=='SELECT'&&tg!=='TEXTAREA'){pov=!pov;e.preventDefault();}
+    return;
+  }
   if(e.code==='Enter'||e.code==='Space'){
     if(e.target&&e.target.tagName==='BUTTON')return;
     if(mode!=='run'){startRun();e.preventDefault();}
