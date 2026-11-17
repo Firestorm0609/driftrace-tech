@@ -106,8 +106,29 @@ button{cursor:pointer}
 .winner{position:fixed;inset:0;background:#000000f2;z-index:50;display:none;place-items:center;text-align:center}
 .winner.on{display:grid}
 .winner h1{font-size:28px;margin:8px 0}
-.winner-car{margin:8px auto;width:48px;height:72px}
-.winner-car svg{width:100%;height:100%;filter:drop-shadow(0 0 12px var(--winner-glow,#ccff00))}
+.winner-car{margin:10px auto;width:112px;height:217px}
+.winner-car svg,.winner-car canvas{width:100%;height:100%;image-rendering:pixelated;filter:drop-shadow(0 0 12px var(--winner-glow,#ccff00))}
+/* -- THEATRE: full-window race view -- */
+body.theatre .world{grid-template-columns:minmax(0,1fr);gap:0;padding:0}
+body.theatre .hub{display:none}
+body.theatre .trackside{grid-template-rows:46px 1fr;border:0}
+body.theatre .lanehead{font-size:9px;padding:7px 0;letter-spacing:.06em}
+body.theatre .lanehead b{font-size:15px;margin-bottom:2px}
+body.theatre .lanehead .bet-count{font-size:6px}
+body.theatre .startline{top:46px}
+body.theatre .finish{bottom:0;height:9px}
+body.theatre .fair{font-size:8px;bottom:2px;left:6px}
+body.theatre .test-badge{font-size:8px;padding:2px 6px;top:6px;right:6px}
+body.theatre .car{top:10px}
+.car canvas{display:none;image-rendering:pixelated}
+body.theatre .car canvas{display:block;width:clamp(64px,5.4vw,92px);height:auto}
+body.theatre .car svg{display:none}
+button.on{border-color:var(--neon);background:#ccff0014}
+.theatre-hud{position:fixed;top:0;left:50%;transform:translateX(-50%);height:28px;z-index:20;display:none;align-items:center;gap:10px;font-size:8px;padding:0 10px;border-left:1px solid var(--dim);border-right:1px solid var(--dim);background:#000c;letter-spacing:.06em;white-space:nowrap}
+body.theatre .theatre-hud{display:flex}
+body.theatre .top .muted,body.theatre .top .usd{display:none}
+.theatre-hud b{font-weight:700}
+.theatre-hud button{padding:2px 6px;font-size:7px}
 @media(max-width:600px){
   .top .muted{display:none}
   .world{grid-template-columns:106px minmax(0,1fr);gap:3px;padding:3px}
@@ -121,7 +142,12 @@ button{cursor:pointer}
   .history{max-height:70px}.leaderboard{max-height:90px}.hist-row,.lb-row{font-size:4px}
   .trackside{grid-template-rows:32px 1fr}.lanehead{font-size:3px;padding:3px 0}.lanehead b{font-size:6px}
   .car svg{width:14px;height:22px}.startline{top:23px}
-  .winner h1{font-size:20px}.winner-car{width:36px;height:54px}
+  .winner h1{font-size:20px}.winner-car{width:78px;height:151px}
+  #theatreBtn{display:none}
+  body.theatre .world{grid-template-columns:106px minmax(0,1fr)}
+  body.theatre .hub{display:flex}
+  body.theatre .car canvas{display:none}
+  .theatre-hud{display:none!important}
 }
 </style>
 </head>
@@ -131,6 +157,7 @@ button{cursor:pointer}
   <div class="muted">AUTONOMOUS RACE OPERATOR // ROBINHOOD CHAIN</div>
   <span class="usd" id="ethUsd"></span>
   <button class="sound-btn" id="soundBtn" title="Toggle sound">&#128266;</button>
+  <button class="sound-btn" id="theatreBtn" title="Full-window race view">&#9974; THEATRE</button>
   <button class="wallet" id="walletBtn">CONNECT</button>
 </header>
 <main class="world">
@@ -223,6 +250,10 @@ button{cursor:pointer}
     </div>
   </section>
 </main>
+<div class="theatre-hud" id="theatreHud">
+  <span><b id="thRace">#&mdash;</b></span><span id="thStatus">SYNC</span><span id="thPool">0 ETH</span><span id="thTimer">--:--</span>
+  <button id="thExit">EXIT</button>
+</div>
 <div class="winner" id="winner">
   <div>
     <div class="muted">RACE SETTLED BY DRIFT AGENT</div>
@@ -287,7 +318,7 @@ var SFX={
 $('soundBtn').onclick=function(){soundEnabled=!soundEnabled;$('soundBtn').textContent=soundEnabled?'\u{1f50a}':'\u{1f507}';$('soundBtn').classList.toggle('muted-sound',!soundEnabled);SFX.click()};
 document.addEventListener('click',function(){initAudio()},{once:true});
 
-/* ── SVG CAR ── */
+/* ── SVG CAR (hub view, small) ── */
 function carSVG(c){
   return '<svg viewBox="0 0 18 40" fill="none" xmlns="http://www.w3.org/2000/svg">'
     +'<g class="speed-lines">'
@@ -310,6 +341,140 @@ function carSVG(c){
     +'<circle cx="10.5" cy="5.5" r=".8" fill="'+c.fill+'" opacity=".9"/>'
     +'</svg>';
 }
+
+/* ── SPRITE-STACK CAR (theatre view, 80x164) ──
+   A voxel car seen from above: 32 rows of 20 cells, each cell owning a slice
+   range between two heights. Every slice is one flat layer, drawn bottom-up
+   and lifted a step, so the volume is the stack. No polygons, no meshes. */
+var VOX=[
+  '.wwwwwwwwwwwwwwwwww.',
+  '.wwwwwwwwwwwwwwwwww.',
+  '.....xx......xx.....',
+  '.....xx......xx.....',
+  '.....xxbbbbbbxx.....',
+  '.....xxbbbbbbxx.....',
+  '..ttt.bbbbbbbb.ttt..',
+  '..ttt.bbbbbbbb.ttt..',
+  '..tttbbbbbbbbbbttt..',
+  '..tttbbbbbbbbbbttt..',
+  '..tttbbbbbbbbbbttt..',
+  '...tt.bbbbbbbb.tt...',
+  '......bbbbbbbb......',
+  '.....bbbbbbbbbb.....',
+  '....ppbccccccbpp....',
+  '....ppbccccccbpp....',
+  '....ppbccccccbpp....',
+  '....ppbccccccbpp....',
+  '....ppbbbbbbbbpp....',
+  '....ppbbbbbbbbpp....',
+  '..ttt.bbbbbbbb.ttt..',
+  '..tttbbbbbbbbbbttt..',
+  '..tttbbbbbbbbbbttt..',
+  '...tt.bbbbbbbb.tt...',
+  '......vvvvvvvv......',
+  '......vvvvvvvv......',
+  '.......vvvvvv.......',
+  '.......vvvvvv.......',
+  '........vvvv........',
+  '........vvvv........',
+  '...yyyyyyyyyyyyyy...',
+  '...yyyyyyyyyyyyyy...'
+];
+var VOX_LO={t:1,y:1,v:1,p:1,b:1,x:4,w:7,c:4};
+var VOX_HI={t:2,y:2,v:3,p:4,b:5,x:6,w:8,c:9};
+var VOX_TOP=9;
+var stackCanvases=[];
+
+function hexToRgb(h){
+  var n=parseInt(String(h).replace('#',''),16);
+  return [(n>>16)&255,(n>>8)&255,n&255];
+}
+function shade(rgb,amt){
+  var r=rgb[0],g=rgb[1],b=rgb[2];
+  if(amt<0){var f=1+amt;r*=f;g*=f;b*=f}
+  else{r+=(255-r)*amt;g+=(255-g)*amt;b+=(255-b)*amt}
+  return 'rgb('+Math.round(r)+','+Math.round(g)+','+Math.round(b)+')';
+}
+function voxLo(ch){return VOX_LO[ch]||0}
+function voxHi(ch){return VOX_HI[ch]||0}
+
+function drawStack(ctx,W,H,colors){
+  ctx.clearRect(0,0,W,H);
+  ctx.imageSmoothingEnabled=false;
+  var P=Math.floor(W/20),L=Math.max(2,Math.round(P*.7));
+  var x0=Math.round((W-20*P)/2),y0=H-32*P-8;
+  var base=hexToRgb(colors.fill);
+  ctx.save();ctx.globalAlpha=.28;ctx.fillStyle='#000';
+  ctx.beginPath();ctx.ellipse(W/2,y0+31*P+2,W*.33,P*1.1,0,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+  for(var s=1;s<=VOX_TOP;s++){
+    var lift=(s-1)*L;
+    for(var r=0;r<32;r++){
+      var row=VOX[r];
+      for(var c=0;c<20;c++){
+        var ch=row.charAt(c);
+        if(ch==='.')continue;
+        if(s<voxLo(ch)||s>voxHi(ch))continue;
+        var top=(s===voxHi(ch)),col;
+        if(ch==='t')col=top?'#1b1b1b':'#0e0e0e';
+        else if(ch==='w'||ch==='y')col=top?colors.stroke:shade(base,-.05);
+        else if(ch==='c')col=top?'rgba(150,245,255,.9)':'rgba(110,215,235,'+(0.20+0.05*s).toFixed(2)+')';
+        else if(top)col=shade(base,.26);
+        else col=shade(base,-.52+.07*s);
+        ctx.fillStyle=col;
+        ctx.fillRect(x0+c*P,y0+r*P-lift,P,P);
+      }
+    }
+  }
+}
+function makeStackCanvas(W,H){
+  var cv=document.createElement('canvas');
+  cv.width=W;cv.height=H;cv.className='car-stack';
+  return cv;
+}
+function paintWinnerCar(colors){
+  var host=$('winnerCar');
+  host.innerHTML='';
+  var cv=makeStackCanvas(240,464);
+  drawStack(cv.getContext('2d'),240,464,colors);
+  host.appendChild(cv);
+  host.style.setProperty('--winner-glow',colors.fill);
+}
+
+/* ── THEATRE MODE ── */
+function carSpan(){
+  if(!document.body.classList.contains('theatre'))return 42;
+  var cv=stackCanvases[0];
+  if(!cv)return 164;
+  var h=cv.getBoundingClientRect().height;
+  return h>40?Math.round(h):42;
+}
+function trackMax(){return Math.max(45,$('track').clientHeight-carSpan())}
+function relayout(){
+  var m=trackMax();
+  for(var i=0;i<10;i++){
+    var c=$('car'+i);if(!c)continue;
+    var t=parseFloat(c.style.top);if(isNaN(t))t=8;
+    c.style.top=Math.min(t,m)+'px';
+  }
+}
+function syncHud(){
+  if(!document.body.classList.contains('theatre'))return;
+  $('thRace').textContent=$('raceId').textContent;
+  $('thStatus').textContent=$('raceStatus').textContent;
+  $('thPool').textContent=$('pool').textContent;
+  $('thTimer').textContent=$('timer').textContent;
+}
+function setTheatre(on){
+  document.body.classList.toggle('theatre',!!on);
+  $('theatreBtn').classList.toggle('on',!!on);
+  relayout();syncHud();
+}
+$('theatreBtn').onclick=function(){initAudio();SFX.click();setTheatre(!document.body.classList.contains('theatre'))};
+$('thExit').onclick=function(){SFX.click();setTheatre(false)};
+document.addEventListener('keydown',function(e){if(e.key==='Escape')setTheatre(false)});
+window.addEventListener('resize',relayout);
+setInterval(syncHud,400);
 
 /* ── STATE ── */
 var provider,signer,contract,rid=0,lastWinner=null,selectedTier=1;
@@ -364,6 +529,10 @@ function build(){
   for(var i=0;i<10;i++){
     var l=document.createElement('div');l.className='lane';
     l.innerHTML='<div class="car" id="car'+i+'" style="--car-glow:'+DC[i].fill+'66">'+carSVG(DC[i])+'</div>';
+    var cd=l.firstChild;
+    var cvs=makeStackCanvas(80,164);
+    drawStack(cvs.getContext('2d'),80,164,DC[i]);
+    cd.appendChild(cvs);stackCanvases[i]=cvs;
     $('track').appendChild(l);
   }
   var rooms=document.querySelectorAll('.race-room');
@@ -444,10 +613,9 @@ $('testBtn').onclick=function(){
       SFX.raceStart();
       setRacingClass(true);
       var winnerIdx=rand(0,9);
-      var track=$('track');
-      var max=Math.max(45,track.clientHeight-42);
       var steps=12;
       for(var s=0;s<steps;s++){
+        var max=trackMax();
         for(var i2=0;i2<10;i2++){
           var c=$('car'+i2);
           var progress=(s+1)/steps;
@@ -461,7 +629,7 @@ $('testBtn').onclick=function(){
       }
       for(var i3=0;i3<10;i3++){
         var c2=$('car'+i3);
-        c2.style.top=i3===winnerIdx?max+'px':(42+Math.random()*Math.max(24,max-75))+'px';
+        c2.style.top=i3===winnerIdx?max+'px':(carSpan()+Math.random()*Math.max(24,max-carSpan()-40))+'px';
       }
       setRacingClass(false);
       $('seed').textContent='0x'+Math.random().toString(16).slice(2,18)+'\u2026';
@@ -483,7 +651,7 @@ $('testBtn').onclick=function(){
       $('winnerName').style.color=DC[winnerIdx].fill;
       var poolUsd=ethPrice?(pool*ethPrice).toFixed(2):'';
       $('winnerPool').textContent='POOL '+pool.toFixed(4)+' ETH'+(poolUsd?' (~$'+poolUsd+')':'');
-      $('winnerCar').innerHTML=carSVG(DC[winnerIdx]);
+      paintWinnerCar(DC[winnerIdx]);
       $('winnerCar').style.setProperty('--winner-glow',DC[winnerIdx].fill);
       $('winner').classList.add('on');
       SFX.win();
@@ -507,8 +675,6 @@ $('testBtn').onclick=function(){
 };
 
 function setTestCars(status){
-  var track=$('track');
-  var max=Math.max(45,track.clientHeight-42);
   for(var i=0;i<10;i++){
     var c=$('car'+i);
     if(status==='pending')c.style.top='8px';
@@ -557,13 +723,13 @@ async function poll(){
       prevStatus=status;
     }
     for(var i2=0;i2<10;i2++){var lane=$('car'+i2)?$('car'+i2).parentElement:null;if(lane){if(status==='RUNNING')lane.classList.add('racing');else lane.classList.remove('racing')}}
-    var track=$('track'),max=Math.max(45,track.clientHeight-42);
-    for(var i3=0;i3<10;i++){var c2=$('car'+i3),top=8;if(r[7]||r[8])top=i3===Number(r[9])?max:42+Math.random()*Math.max(24,max-75);else if(r[6])top=30+Math.random()*Math.max(24,max*.55);c2.style.top=Math.min(top,max)+'px'}
+    var max=trackMax();
+    for(var i3=0;i3<10;i++){var c2=$('car'+i3),top=8;if(r[7]||r[8])top=i3===Number(r[9])?max:carSpan()+Math.random()*Math.max(24,max-carSpan()-40);else if(r[6])top=30+Math.random()*Math.max(24,max*.55);c2.style.top=Math.min(top,max)+'px'}
     if(r[8]&&r[7]&&Number(r[9])!==lastWinner){
       lastWinner=Number(r[9]);var w=DC[lastWinner];
       $('winnerName').textContent=D[lastWinner];$('winnerName').style.color=w.fill;
       $('winnerPool').textContent='POOL '+pool.toFixed(4)+' ETH'+(poolUsd?' (~$'+poolUsd+')':'');
-      $('winnerCar').innerHTML=carSVG(w);$('winnerCar').style.setProperty('--winner-glow',w.fill);
+      paintWinnerCar(w);$('winnerCar').style.setProperty('--winner-glow',w.fill);
       $('winner').classList.add('on');
       wins[lastWinner]++;totalRaces++;addHistory(rid,lastWinner,pool);updateLeaderboard();
       flashEvent(D[lastWinner]+' wins race #'+rid+'!');SFX.win();
