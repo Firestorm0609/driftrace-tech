@@ -364,8 +364,8 @@ var smoke=[],nextPuff=0;
 /* ── MANUAL RUN ──
    One car, one driver, one finish line. The bend at the car pushes it
    toward the grass and the steering has to earn the line back. */
-var MAXSPD=430,RUNLEN=16000,RUNTIME=60;
-var mode='idle',runT=0,runEnd=0,finishZ=0;
+var MAXSPD=620,REVSPD=120,RUNLEN=22000,RUNTIME=60,HUDTOP=300;
+var mode='idle',runT=0,runEnd=0,finishZ=0,braking=false;
 var keys={l:0,r:0,u:0,d:0},steerV=0,offRoad=false;
 var ONG=0.63;   /* drift past this and a wheel is on the grass */
 
@@ -386,7 +386,8 @@ function drawHud(){
     return;
   }
   shadeText('TIME '+fmtT(mode==='run'?runT:runEnd),4,4,(mode==='run'&&runT>50)?'#ff8a4a':'#eaf6d2');
-  shadeText(Math.round(SPD/MAXSPD*220)+' KM/H',RW-4,4,offRoad?'#ffb27a':'#ccff00','right');
+  var kmh=Math.round(SPD/MAXSPD*HUDTOP);
+  shadeText((SPD<-1?'R '+Math.abs(kmh):kmh)+' KM/H',RW-4,4,offRoad?'#ffb27a':'#ccff00','right');
   var pw=RW-8,prog=Math.max(0,Math.min(1,1-left/RUNLEN));
   sg.fillStyle='rgba(6,12,4,.55)';sg.fillRect(4,16,pw,3);
   sg.fillStyle=offRoad?'#ff7a3d':'#ccff00';sg.fillRect(4,16,Math.max(1,Math.round(pw*prog)),3);
@@ -454,12 +455,19 @@ function drawCar(cx,cy,tilt){
 
   var ty=Math.round(yBump+CARW*0.045);
   var tlw=Math.max(4,Math.round(W*0.36)),tlh=Math.max(3,Math.round(CARW*0.075));
-  sg.fillStyle='#b52a24';
-  sg.fillRect(Math.round(-W*0.90),ty,tlw,tlh);
-  sg.fillRect(Math.round(W*0.90-tlw),ty,tlw,tlh);
-  sg.fillStyle='#ff6a4a';
-  sg.fillRect(Math.round(-W*0.90),ty,tlw,2);
-  sg.fillRect(Math.round(W*0.90-tlw),ty,tlw,2);
+  var tlL=Math.round(-W*0.90),tlR=Math.round(W*0.90-tlw);
+  if(braking){
+    /* the lamp blooms past the lens so the car reads as braking at speed */
+    sg.fillStyle='rgba(255,48,20,.20)';
+    sg.fillRect(tlL-2,ty-2,tlw+4,tlh+4);
+    sg.fillRect(tlR-2,ty-2,tlw+4,tlh+4);
+  }
+  sg.fillStyle=braking?'#ff2715':'#b52a24';
+  sg.fillRect(tlL,ty,tlw,tlh);
+  sg.fillRect(tlR,ty,tlw,tlh);
+  sg.fillStyle=braking?'#ffc9bd':'#ff6a4a';
+  sg.fillRect(tlL,ty,tlw,2);
+  sg.fillRect(tlR,ty,tlw,2);
   sg.fillStyle='#d8d2b4';
   sg.fillRect(Math.round(-W*0.22),Math.round(yBump+2),Math.round(W*0.44),Math.max(3,Math.round(CARW*0.075)));
   sg.fillStyle='#0a0a10';
@@ -515,6 +523,7 @@ function render(ms){
   /* how hard the road is bending under the car right now */
   var bendN=Math.max(-1,Math.min(1,(roadX(sCar+170)-roadX(sCar-170))/620));
   offRoad=Math.abs(drift)>ONG;
+  braking=!!keys.d&&SPD>=-0.5&&mode!=='idle';
 
   if(mode==='idle'){
     /* attract mode: the car drives itself along the racing line */
@@ -531,11 +540,18 @@ function render(ms){
     drift+=(-bendN*1.40*(SPD/MAXSPD)+steerV*1.15*(offRoad?0.45:1))*dt;
     drift=Math.max(-1.05,Math.min(1.05,drift));
     if(mode==='run'){
-      if(keys.u)SPD=Math.min(MAXSPD,SPD+240*dt);
-      else if(keys.d)SPD=Math.max(60,SPD-560*dt);
-      else SPD=Math.max(90,SPD-45*dt);
-      var cap=offRoad?MAXSPD*0.45:MAXSPD;
-      if(SPD>cap)SPD=Math.max(cap,SPD-420*dt);
+      /* the brake brings the car to a dead stop and then reverses it */
+      if(keys.u)SPD=Math.min(MAXSPD,SPD+300*dt);
+      else if(keys.d){
+        if(SPD>0)SPD=Math.max(0,SPD-900*dt);
+        else SPD=Math.max(-REVSPD,SPD-300*dt);
+      }else{
+        if(SPD>0)SPD=Math.max(0,SPD-70*dt);
+        else SPD=Math.min(0,SPD+220*dt);
+      }
+      var capF=offRoad?MAXSPD*0.45:MAXSPD,capR=offRoad?REVSPD*0.45:REVSPD;
+      if(SPD>capF)SPD=Math.max(capF,SPD-420*dt);
+      if(SPD<-capR)SPD=Math.min(-capR,SPD+420*dt);
       if(sCar>=finishZ){mode='done';runEnd=runT;SFX.win();}
     }else{
       SPD=Math.max(0,SPD-150*dt);
@@ -543,6 +559,7 @@ function render(ms){
   }
 
   camZ+=SPD*dt;
+  if(camZ<0){camZ=0;if(SPD<0)SPD=0;}
   camX=roadX(camZ)+0.90*(roadX(sCar)-roadX(camZ));
   var carX=roadX(sCar)+drift*ROADH;
 
