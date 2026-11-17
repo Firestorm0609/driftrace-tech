@@ -683,11 +683,17 @@ function drawStreaks(dt,spdK,HZY){
 function drawRival(HZY,visX){
   if(mode!=='run'&&mode!=='countdown')return;
   var rz=rivZ-camZ;
-  if(rivZ<camZ+CARD-30)return;   /* the chase camera does not see a car it has passed */
+  if(rivZ<camZ+CARD-10)return;   /* the chase camera does not see a car it has passed */
   if(rz<40||rz>14000)return;
-  var sc=CARD/rz;
+  var raw=Math.min(1,CARD/rz);
+  /* Cars racing together stay the same size; only a car clearly up the
+     road takes the perspective shrink. This also caps a passed rival. */
+  var near=1-Math.max(0,Math.min(1,(rz-CARD-160)/640));
+  var sc=raw+(1-raw)*near;
   var x=RW*0.5+(rivX-visX)*FOC/rz;
   var y=HZY+FOC*CAMH/rz;
+  var side=Math.max(0,1-Math.abs(rz-CARD)/80);
+  y+=(RH*0.80-y)*side;   /* side by side means the same road baseline */
   if(y>RH+70||x<-RW*0.8||x>RW*1.8)return;
   carPal=CARP.rival;
   sg.save();
