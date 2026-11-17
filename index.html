@@ -318,7 +318,8 @@ document.addEventListener('click',function(){initAudio()},{once:true});
 var eng=null;
 /* five gears: each ratio pulls to a hard top, then the pitch drops and the
    next one takes over, so every shift is something you can hear */
-var GEARS=[0.20,0.40,0.60,0.80,1.00];
+var GEARS=[0.147,0.32,0.52,0.74,1.00];
+var GEARACC=[150,115,95,82,70];   /* low gears yank, top gear pulls long */
 var gearNow=1,gearJolt=0,shiftCut=0;
 function gearAt(k){
   if(!(k>0))return{g:1,rpm:0};
@@ -370,7 +371,7 @@ function engineUpdate(){
   try{
     var k=Math.min(1,Math.abs(SPD)/MAXSPD),t=audioCtx.currentTime;
     var gi=gearAt(k);
-    var f0=44+gi.rpm*122+(gi.g-1)*3,live=soundEnabled?1:0;
+    var f0=40+gi.rpm*118+(gi.g-1)*8,live=soundEnabled?1:0;
     var load=(mode==='run')&&keys.u?1:((mode==='run')?(keys.d?0.25:0.5):0.35);
     var cut=shiftCut>0?0.45:1;
     eng.o1.frequency.setTargetAtTime(f0,t,0.035);
@@ -435,7 +436,7 @@ var smoke=[],nextPuff=0;
 /* ── MANUAL RUN ──
    One car, one driver, one finish line. The bend at the car pushes it
    toward the grass and the steering has to earn the line back. */
-var MAXSPD=920,REVSPD=120,RUNLEN=33000,RUNTIME=60,HUDTOP=450;
+var MAXSPD=1500,REVSPD=120,RUNLEN=48000,RUNTIME=60,HUDTOP=700;
 var mode='idle',runT=0,runEnd=0,finishZ=0,braking=false;
 var keys={l:0,r:0,u:0,d:0},steerV=0,offRoad=false;
 var ONG=0.63;   /* drift past this and a wheel is on the grass */
@@ -464,7 +465,7 @@ function drawHud(){
   var pw=RW-8,prog=Math.max(0,Math.min(1,1-left/RUNLEN));
   sg.fillStyle='rgba(6,12,4,.55)';sg.fillRect(4,16,pw,3);
   sg.fillStyle=offRoad?'#ff7a3d':'#ccff00';sg.fillRect(4,16,Math.max(1,Math.round(pw*prog)),3);
-  if(mode==='run'&&left<3800)shadeText('FINISH AHEAD',RW*0.5,RH*0.24,'#ffffff','center');
+  if(mode==='run'&&left<5000)shadeText('FINISH AHEAD',RW*0.5,RH*0.24,'#ffffff','center');
   if(mode==='done')shadeText('FINISH  '+fmtT(runEnd),RW*0.5,RH*0.40,'#ccff00','center');
   if(mode==='timeup')shadeText('TIME UP  '+Math.round(RUNLEN-left)+'/'+RUNLEN,RW*0.5,RH*0.40,'#ff7a3d','center');
   if(mode!=='run')shadeText('PRESS ENTER TO RUN AGAIN',RW*0.5,RH*0.40+13,'#a9c98c','center');
@@ -641,8 +642,10 @@ function render(ms){
     drift=Math.max(-1.05,Math.min(1.05,drift));
     if(mode==='run'){
       /* the brake brings the car to a dead stop and then reverses it */
-      if(keys.u)SPD=Math.min(MAXSPD,SPD+400*dt);
-      else if(keys.d){
+      if(keys.u){
+        var acc=GEARACC[gearAt(Math.abs(SPD)/MAXSPD).g-1]||70;
+        SPD=Math.min(MAXSPD,SPD+acc*dt);
+      }else if(keys.d){
         if(SPD>0)SPD=Math.max(0,SPD-1400*dt);
         else SPD=Math.max(-REVSPD,SPD-300*dt);
       }else{
