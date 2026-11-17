@@ -302,6 +302,7 @@ function beep(freq,dur,type,vol){
 var SFX={
   bet:function(){beep(880,.08,'square',.1);setTimeout(function(){beep(1100,.06,'square',.08)},60)},
   raceStart:function(){[440,550,660,880].forEach(function(f,i){setTimeout(function(){beep(f,.12,'sawtooth',.08)},i*80)})},
+  count:function(){beep(560,.09,'square',.09)},
   racing:function(){beep(120,.3,'sawtooth',.04)},
   settle:function(){beep(660,.15,'sine',.12);setTimeout(function(){beep(880,.15,'sine',.1)},120);setTimeout(function(){beep(1100,.2,'sine',.08)},240)},
   win:function(){[523,659,784,1047].forEach(function(f,i){setTimeout(function(){beep(f,.18,'sine',.12)},i*100)})},
@@ -463,6 +464,7 @@ var smoke=[],nextPuff=0;
    wheel has to earn the line back while the red car holds its own pace. */
 var MAXSPD=1500,REVSPD=120,RUNLEN=48000,RUNTIME=60,HUDTOP=700;
 var mode='idle',runT=0,runEnd=0,finishZ=0,braking=false,raceWon=false;
+var countT=0,countStep=0,startFlash=0;
 var runStartZ=0;
 var rivZ=0,rivX=0,rivSpd=60,rivDrift=0.28,rivSteer=0,rivBrake=false,rivDone=false,rivT=0;
 var keys={l:0,r:0,u:0,d:0},steerV=0,offRoad=false;
@@ -476,6 +478,15 @@ function shadeText(txt,x,y,col,al){
   sg.fillRect(Math.round(x+ox)-2,Math.round(y)-1,Math.round(w)+4,10);
   sg.fillStyle=col||'#eaf6d2';sg.fillText(txt,Math.round(x),Math.round(y));
   sg.textAlign='left';
+}
+function bigText(txt,y,col){
+  sg.font='bold 26px ui-monospace,Menlo,monospace';
+  sg.textBaseline='middle';sg.textAlign='center';
+  var w=sg.measureText(txt).width,bh=32;
+  sg.fillStyle='rgba(6,12,4,.68)';
+  sg.fillRect(Math.round(RW*0.5-w*0.5)-6,Math.round(y-bh*0.5),Math.round(w)+12,bh);
+  sg.fillStyle=col;sg.fillText(txt,Math.round(RW*0.5),Math.round(y));
+  sg.textAlign='left';sg.textBaseline='top';
 }
 function drawHud(){
   var left=Math.max(0,finishZ-camZ-CARD);
@@ -496,22 +507,29 @@ function drawHud(){
   sg.fillStyle=offRoad?'#ff7a3d':'#ccff00';sg.fillRect(4,16,Math.max(1,Math.round(pw*prog)),3);
   var rp=Math.max(0,Math.min(1,(rivZ-runStartZ)/RUNLEN));
   sg.fillStyle='#ff4757';sg.fillRect(4+Math.round(pw*rp)-1,15,3,5);
+  if(mode==='countdown'){
+    bigText(String(Math.ceil(countT)),RH*0.33,'#eaf6d2');
+    shadeText('HOLD UP TO LAUNCH',RW*0.5,RH*0.33+22,'#a9c98c','center');
+  }
+  if(mode==='run'&&startFlash>0)bigText('START',RH*0.33,'#ccff00');
   if(mode==='run'&&left<5000)shadeText('FINISH AHEAD',RW*0.5,RH*0.24,'#ffffff','center');
   if(mode==='run'&&rivDone)shadeText('RIVAL FINISHED',RW*0.5,36,'#ff6a4a','center');
   if(mode==='done')shadeText((raceWon?'P1  YOU WIN':'P2  RIVAL WINS')+'  '+fmtT(runEnd),RW*0.5,RH*0.40,raceWon?'#ccff00':'#ff7a3d','center');
   if(mode==='timeup')shadeText('TIME UP',RW*0.5,RH*0.40,'#ff7a3d','center');
-  if(mode!=='run')shadeText('PRESS ENTER TO RUN AGAIN',RW*0.5,RH*0.40+13,'#a9c98c','center');
+  if(mode==='done'||mode==='timeup')shadeText('PRESS ENTER TO RUN AGAIN',RW*0.5,RH*0.40+13,'#a9c98c','center');
 }
 function startRun(){
-  if(mode==='run')return;
-  mode='run';runT=0;runEnd=0;steerV=0;drift=0;SPD=60;raceWon=false;
+  if(mode==='run'||mode==='countdown')return;
+  mode='countdown';countT=3;countStep=3;startFlash=0;
+  runT=0;runEnd=0;steerV=0;drift=0;SPD=0;raceWon=false;
   gearNow=gearAt(SPD/MAXSPD).g;gearJolt=0;shiftCut=0;
   runStartZ=camZ+CARD;
   finishZ=runStartZ+RUNLEN;   /* measured from the car, so the bar starts at zero */
-  rivZ=runStartZ+140;rivSpd=60;rivDrift=0.28;rivSteer=0;rivBrake=false;rivDone=false;rivT=0;
+  rivZ=runStartZ+140;rivSpd=0;rivDrift=0.28;rivSteer=0;rivBrake=false;rivDone=false;rivT=0;
   rivX=roadX(rivZ)+rivDrift*ROADH;
-  SFX.raceStart();
+  smoke=[];STK.length=0;nextPuff=0;
   engineStart();
+  SFX.count();
 }
 
 /* Two liveries from one sprite: the player's blue and the rival's red. */
@@ -661,7 +679,7 @@ function drawStreaks(dt,spdK,HZY){
 /* the rival, projected from its own place on the road instead of the
    fixed car row, so it grows as you catch it and shrinks as it pulls away */
 function drawRival(HZY,visX){
-  if(mode!=='run')return;
+  if(mode!=='run'&&mode!=='countdown')return;
   var rz=rivZ-camZ;
   if(rz<40||rz>14000)return;
   var sc=CARD/rz;
@@ -685,6 +703,14 @@ function render(ms){
   var bendN=Math.max(-1,Math.min(1,(roadX(sCar+170)-roadX(sCar-170))/620));
   offRoad=Math.abs(drift)>ONG;
   braking=!!keys.d&&SPD>=-0.5&&mode!=='idle';
+
+  if(mode==='countdown'){
+    countT-=dt;
+    var cn=Math.ceil(countT);
+    if(cn>0&&cn!==countStep){countStep=cn;SFX.count();}
+    if(countT<=0){mode='run';runT=0;startFlash=0.9;SFX.raceStart();}
+  }
+  if(startFlash>0)startFlash=Math.max(0,startFlash-dt);
 
   if(mode==='idle'){
     /* attract mode: the car drives itself along the racing line */
@@ -868,10 +894,10 @@ function render(ms){
     sg.fillRect(Math.round(p.x-p.r),Math.round(p.y-p.r),Math.round(p.r*2),Math.round(p.r*2));
   }
 
-  var rzDraw=rivZ-camZ;
-  if(mode==='run'&&rzDraw>CARD)drawRival(HZY,camX);
+  var rzDraw=rivZ-camZ,showRival=(mode==='run'||mode==='countdown');
+  if(showRival&&rzDraw>CARD)drawRival(HZY,camX);
   drawCar(RW*0.5+(carX-camX)*FOC/CARD,Math.round(RH*0.80)+Math.sin(ms/72)*(0.35+1.15*spdK)*Math.min(1,Math.abs(SPD)/260),drift*0.13+steerV*0.05);
-  if(mode==='run'&&rzDraw>=40&&rzDraw<=CARD)drawRival(HZY,camX);
+  if(showRival&&rzDraw>=40&&rzDraw<=CARD)drawRival(HZY,camX);
 
   engineUpdate();
   drawHud();
@@ -886,13 +912,13 @@ document.addEventListener('keydown',function(e){
   if(k){keys[k]=1;e.preventDefault();return;}
   if(e.code==='Enter'||e.code==='Space'){
     if(e.target&&e.target.tagName==='BUTTON')return;
-    if(mode!=='run'){startRun();e.preventDefault();}
+    if(mode==='idle'||mode==='done'||mode==='timeup'){startRun();e.preventDefault();}
   }
 });
 document.addEventListener('keyup',function(e){var k=keyMap[e.code];if(k){keys[k]=0;e.preventDefault();}});
 window.addEventListener('blur',function(){keys.l=keys.r=keys.u=keys.d=0;steerV=0;});
 if(SCV&&window.matchMedia&&window.matchMedia('(pointer:fine)').matches){
-  SCV.addEventListener('pointerdown',function(){if(mode!=='run')startRun();});
+  SCV.addEventListener('pointerdown',function(){if(mode==='idle'||mode==='done'||mode==='timeup')startRun();});
 }
 
 /* ── STATE ── */
