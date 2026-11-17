@@ -709,7 +709,12 @@ function drawRival(HZY,visX){
      road takes the perspective shrink. This also caps a passed rival. */
   var near=1-Math.max(0,Math.min(1,(rz-CARD-160)/640));
   var sc=raw+(1-raw)*near;
-  var x=RW*0.5+(rivX-visX)*FOC/rz;
+  /* Near the player, project lateral spacing at the player's depth as well
+     as its size. Otherwise a car slightly ahead is drawn narrower than its
+     hitbox and its sprite can sit inside the player's. */
+  var xp=RW*0.5+(rivX-visX)*FOC/rz;
+  var xn=RW*0.5+(rivX-visX)*FOC/CARD;
+  var x=xp+(xn-xp)*near;
   var y=HZY+FOC*CAMH/rz;
   var side=Math.max(0,1-Math.abs(rz-CARD)/80);
   y+=(RH*0.80-y)*side;   /* side by side means the same road baseline */
@@ -826,10 +831,16 @@ function render(ms){
      rear hit shoves the rival forward; a side hit knocks both off line. */
   if(mode!=='idle'&&mode!=='countdown'){
     var ddx=(rivDrift-drift)*ROADH,ddz=rivZ-sCar;
-    var carWorldW=CARW*CARD/FOC,hitX=carWorldW,hitZ=carWorldW*1.06;
+    /* Match the drawn sprite: its full wing width and the projected height
+       that separates two near-field cars vertically. */
+    var carWorldW=CARW*CARD/FOC,hitX=carWorldW*1.06,hitZ=carWorldW*1.80;
     if(Math.abs(ddx)<hitX&&Math.abs(ddz)<hitZ){
       var penX=hitX-Math.abs(ddx),penZ=hitZ-Math.abs(ddz);
-      var sideHit=penX<penZ,nx=ddx>=0?1:-1,nz=ddz>=0?1:-1,closing=0;
+      /* Resolve by the cars' alignment, not the shortest overlap. A direct
+         rear-end can have a huge x overlap at the same time, and choosing
+         that axis used to shove the cars sideways and let the player
+         continue through the rival. */
+      var sideHit=Math.abs(ddx)>=hitX*0.55,nx=ddx>=0?1:-1,nz=ddz>=0?1:-1,closing=0;
       if(sideHit){
         var pLat=(drift-drift0)/Math.max(dt,0.001)*ROADH;
         var rLat=(rivDrift-rivDrift0)/Math.max(dt,0.001)*ROADH;
