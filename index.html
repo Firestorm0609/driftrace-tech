@@ -310,8 +310,8 @@ document.addEventListener('click',function(){initAudio()},{once:true});
 
 /* ── SPRITE-STACK SCENE ──────────────────────────────────────────────
    A pixel-art rally car on a winding road, built the way the reference
-   video teaches it: the car is a pile of flat slices cut from its side
-   view, and the road is projected one scanline at a time. */
+   video teaches it: the car is a pile of flat slices, and the road is
+   projected one scanline at a time. */
 var SCV=$('scene'),sg=SCV?SCV.getContext('2d'):null;
 var RW=336,RH=287,PXPX=3,CARW=46;
 var CAMH=520,FOC=260,ROADH=132,SPD=250,CARD=480,HZ=-52;
@@ -326,7 +326,7 @@ function sizeScene(){
   RH=Math.max(100,Math.round(h/PXPX));
   SCV.width=RW;SCV.height=RH;
   HZ=-Math.round(RH*0.17);
-  CARW=Math.max(30,Math.round(RW*0.17));
+  CARW=Math.max(34,Math.round(RW*0.195));
   sg=SCV.getContext('2d');
   if(sg)sg.imageSmoothingEnabled=false;
 }
@@ -353,106 +353,108 @@ var ASPH=(function(){
 var camZ=0,camX=roadX(0),drift=0;
 var smoke=[],nextPuff=0;
 
-/* the car, sliced: [half width, depth, colour] bottom slice first.
-   The stack offset between slices is what makes flat layers read solid. */
-var CAR_SL=[
-  [11,16,'#0d1524'],  /* diffuser        */
-  [22,16,'#12306a'],  /* bumper          */
-  [24,16,'#17408a'],
-  [24,16,'#1c4aa0'],
-  [25,16,'#2152ab'],  /* rear arches     */
-  [25,16,'#2459b9'],
-  [24,16,'#2860c4'],
-  [24,16,'#2b66cf'],  /* shoulder        */
-  [23,16,'#2f6bd8'],  /* boot lid        */
-  [21,16,'#0e1728'],  /* glass           */
-  [21,16,'#172742'],
-  [21,16,'#1c3050'],
-  [21,16,'#22395e'],
-  [20,16,'#2f6ada'],  /* roof            */
-  [19,16,'#3576e8'],
-  [19,16,'#3d82f4'],
-  [18,16,'#3169cf']
-];
-
+/* The car is a stack of flat slices pushed back into the screen: every
+   surface is a trapezoid, and the two white stripes shrink with it, so
+   the rear face, boot deck, rear screen and roof all recede together. */
 function drawCar(cx,cy,tilt){
-  var k=CARW/46,i,n=CAR_SL.length,off=1.55*k,sq=0.62;
-  var th=Math.round(k*12),tw=Math.round(CARW*0.20);
-  /* shadow stays flat on the tarmac while the body leans */
-  sg.fillStyle='rgba(16,32,16,.18)';
-  sg.fillRect(Math.round(cx-CARW*0.54),Math.round(cy),Math.round(CARW*1.08),4);
-  sg.fillStyle='rgba(16,32,16,.10)';
-  sg.fillRect(Math.round(cx-CARW*0.44),Math.round(cy+4),Math.round(CARW*0.88),3);
+  var W=CARW*0.5;
+  var yBump=-CARW*0.18, yPanel=-CARW*0.33, yDeck=-CARW*0.46,
+      yGlass=-CARW*0.64, yRoof=-CARW*0.79;
 
-  sg.save();
-  sg.translate(cx,cy);
-  sg.rotate(tilt);
-  /* tyres: outside the body, so they read as wheels */
-  sg.fillStyle='#08080c';
-  sg.fillRect(Math.round(-CARW*0.61),-th,tw,th);
-  sg.fillRect(Math.round(CARW*0.41),-th,tw,th);
-  sg.fillStyle='#3b3b46';
-  sg.fillRect(Math.round(-CARW*0.57),-th+3,Math.round(tw*0.72),4);
-  sg.fillRect(Math.round(CARW*0.45),-th+3,Math.round(tw*0.72),4);
-  sg.fillStyle='rgba(6,6,12,.75)';
-  sg.fillRect(Math.round(-CARW*0.61),-th,Math.round(tw*1.04),2);
-  sg.fillRect(Math.round(CARW*0.40),-th,Math.round(tw*1.04),2);
+  /* shadow lies flat on the tarmac while the body leans */
+  sg.fillStyle='rgba(14,30,14,.20)';
+  sg.fillRect(Math.round(cx-W*1.08),Math.round(cy),Math.round(W*2.16),4);
+  sg.fillStyle='rgba(14,30,14,.10)';
+  sg.fillRect(Math.round(cx-W*0.88),Math.round(cy+4),Math.round(W*1.76),3);
 
-  for(i=0;i<n;i++){
-    var hw=CAR_SL[i][0]*k,dep=CAR_SL[i][1]*k*sq;
-    var bot=-off*i,top=bot-dep;
-    var lx=Math.round(-hw),w=Math.round(hw*2)+1,hgt=Math.round(dep+1),ty=Math.round(top);
-    sg.fillStyle=CAR_SL[i][2];
-    sg.fillRect(lx,ty,w,hgt);
-    sg.fillStyle='rgba(0,0,0,.22)';
-    sg.fillRect(lx,ty,1,hgt);sg.fillRect(lx+w-1,ty,1,hgt);
-    /* twin white stripes down the middle of every slice */
-    if(i>2&&hw>8){
-      var sw=Math.max(2,Math.round(k*2.4)),gap=Math.max(1,Math.round(k*1.6));
-      sg.fillStyle='#eef2f6';
-      sg.fillRect(Math.round(-gap-sw),ty,sw,hgt);
-      sg.fillRect(Math.round(gap),ty,sw,hgt);
-    }
-    /* rear glass: dark, inset, with a wide sky reflection */
-    if(i>=9&&i<=12){
-      sg.fillStyle='#0a1220';
-      sg.fillRect(Math.round(-hw+1),ty,w-2,hgt);
-      sg.fillStyle=i<11?'#0f1a2c':'#1a2c48';
-      sg.fillRect(Math.round(-hw+2),ty,w-4,hgt);
-      sg.fillStyle='rgba(140,184,226,.20)';
-      sg.fillRect(Math.round(-hw+3),ty+1,w-6,Math.max(1,Math.round(k*1.6)));
-      if(i===12){sg.fillStyle='rgba(180,214,246,.28)';sg.fillRect(Math.round(-hw+2),ty,w-4,1);}
-    }
-    /* tail lights sit on the rear panel */
-    if(i>=4&&i<=6){
-      var tlw=Math.max(4,Math.round(k*6));
-      sg.fillStyle='#b52a24';
-      sg.fillRect(lx+2,ty,tlw,hgt);
-      sg.fillRect(lx+w-2-tlw,ty,tlw,hgt);
-      sg.fillStyle='#ff6a4a';
-      sg.fillRect(lx+2,ty,Math.max(1,Math.round(tlw*0.5)),hgt);
-      sg.fillRect(lx+w-2-tlw,ty,Math.max(1,Math.round(tlw*0.5)),hgt);
-    }
-    /* one bright edge along the boot lid reads as the shoulder line */
-    if(i===8){
-      sg.fillStyle='#6ba0ee';sg.fillRect(lx+2,ty,w-4,1);
-    }
+  sg.save();sg.translate(cx,cy);sg.rotate(tilt);
+
+  function poly(p,col){
+    sg.fillStyle=col;sg.beginPath();
+    sg.moveTo(Math.round(p[0]),Math.round(p[1]));
+    for(var j=2;j<p.length;j+=2)sg.lineTo(Math.round(p[j]),Math.round(p[j+1]));
+    sg.closePath();sg.fill();
   }
-  /* rear wing across the boot */
-  var wy=Math.round(-off*9.1),ww=Math.round(k*46),ew=Math.max(2,Math.round(k*1.8));
-  sg.fillStyle='#0b1220';
-  sg.fillRect(Math.round(-ww/2),wy,ww,Math.max(2,Math.round(k*2.4)));
-  sg.fillStyle='#3a78e6';
-  sg.fillRect(Math.round(-ww/2),wy,ww,1);
-  sg.fillStyle='#080d16';
-  sg.fillRect(Math.round(-ww/2),wy-Math.round(k*1.6),ew,Math.round(k*3.6));
-  sg.fillRect(Math.round(ww/2-ew),wy-Math.round(k*1.6),ew,Math.round(k*3.6));
-  /* plate and pipes */
+  /* one receding surface: wide at the near edge, narrow at the far edge */
+  function slab(hwA,yA,hwB,yB,col){
+    poly([-hwA,yA, hwA,yA, hwB,yB, -hwB,yB],col);
+  }
+  function stripes(hwA,yA,hwB,yB,w,gap){
+    var a=hwA/W,b=hwB/W,col='#eef2f6';
+    poly([-(gap+w)*a,yA, -gap*a,yA, -gap*b,yB, -(gap+w)*b,yB],col);
+    poly([gap*a,yA, (gap+w)*a,yA, (gap+w)*b,yB, gap*b,yB],col);
+  }
+  var sw=Math.max(2,CARW*0.062), sgap=Math.max(1,CARW*0.038);
+
+  /* tyres, outside the body so they read as wheels */
+  var tw=CARW*0.155,th=CARW*0.28;
+  sg.fillStyle='#08080c';
+  sg.fillRect(Math.round(-W-tw*0.62),Math.round(-th),Math.round(tw),Math.round(th));
+  sg.fillRect(Math.round(W-tw*0.38),Math.round(-th),Math.round(tw),Math.round(th));
+  sg.fillStyle='#3b3b46';
+  sg.fillRect(Math.round(-W-tw*0.52),Math.round(-th+th*0.40),Math.round(tw*0.72),Math.round(th*0.28));
+  sg.fillRect(Math.round(W-tw*0.28),Math.round(-th+th*0.40),Math.round(tw*0.72),Math.round(th*0.28));
+
+  /* bumper, then the tail panel with its fold and shadow */
+  slab(W,0,W,yBump,'#0f2a5c');
+  slab(W,yBump,W*0.96,yPanel,'#1c4aa4');
+  var pg=sg.createLinearGradient(0,yBump,0,yPanel);
+  pg.addColorStop(0,'rgba(6,16,40,.40)');pg.addColorStop(1,'rgba(220,236,255,.10)');
+  poly([-W,yBump, W,yBump, W*0.96,yPanel, -W*0.96,yPanel],pg);
+  stripes(W*0.99,yBump,W*0.955,yPanel,sw,sgap);
+
+  var ty=Math.round(yBump+CARW*0.045);
+  var tlw=Math.max(4,Math.round(W*0.36)),tlh=Math.max(3,Math.round(CARW*0.075));
+  sg.fillStyle='#b52a24';
+  sg.fillRect(Math.round(-W*0.90),ty,tlw,tlh);
+  sg.fillRect(Math.round(W*0.90-tlw),ty,tlw,tlh);
+  sg.fillStyle='#ff6a4a';
+  sg.fillRect(Math.round(-W*0.90),ty,tlw,2);
+  sg.fillRect(Math.round(W*0.90-tlw),ty,tlw,2);
   sg.fillStyle='#d8d2b4';
-  sg.fillRect(Math.round(-k*5),Math.round(-off*3.4),Math.round(k*10),Math.round(k*3));
+  sg.fillRect(Math.round(-W*0.22),Math.round(yBump+2),Math.round(W*0.44),Math.max(3,Math.round(CARW*0.075)));
   sg.fillStyle='#0a0a10';
-  sg.fillRect(Math.round(-k*8),Math.round(-k*3.2),Math.round(k*3),Math.round(k*2));
-  sg.fillRect(Math.round(k*5),Math.round(-k*3.2),Math.round(k*3),Math.round(k*2));
+  sg.fillRect(Math.round(-W*0.18),Math.round(-CARW*0.075),Math.round(CARW*0.075),Math.round(CARW*0.05));
+  sg.fillRect(Math.round(W*0.105),Math.round(-CARW*0.075),Math.round(CARW*0.075),Math.round(CARW*0.05));
+
+  /* boot deck */
+  slab(W*0.96,yPanel,W*0.90,yDeck,'#2f6bd8');
+  stripes(W*0.96,yPanel,W*0.90,yDeck,sw,sgap);
+  sg.fillStyle='rgba(170,206,250,.30)';
+  sg.fillRect(Math.round(-W*0.90),Math.round(yDeck),Math.round(W*1.80),1);
+
+  /* rear wing: a low bar on the boot, not a pair of horns */
+  var ww=W*1.05,wt=Math.max(3,Math.round(CARW*0.065)),ew=Math.max(2,Math.round(CARW*0.05));
+  sg.fillStyle='#0b1220';
+  sg.fillRect(Math.round(-ww),Math.round(yDeck+wt*0.5),Math.round(ww*2),wt);
+  sg.fillStyle='#3a78e6';
+  sg.fillRect(Math.round(-ww),Math.round(yDeck+wt*0.5),Math.round(ww*2),1);
+  sg.fillRect(Math.round(-ww),Math.round(yDeck-wt*0.3),ew,Math.round(wt*1.6));
+  sg.fillRect(Math.round(ww-ew),Math.round(yDeck-wt*0.3),ew,Math.round(wt*1.6));
+
+  /* rear screen, inset between the C-pillars */
+  slab(W*0.90,yDeck,W*0.76,yGlass,'#1b4b9c');
+  poly([-W*0.84,yDeck-1, W*0.84,yDeck-1, W*0.72,yGlass+1, -W*0.72,yGlass+1],'#101c30');
+  poly([-W*0.82,yGlass+Math.round(CARW*0.10), W*0.82,yGlass+Math.round(CARW*0.10),
+        W*0.73,yGlass+2, -W*0.73,yGlass+2],'rgba(150,192,232,.17)');
+  sg.fillStyle='rgba(196,222,248,.34)';
+  sg.fillRect(Math.round(-W*0.72),Math.round(yGlass+1),Math.round(W*1.44),1);
+
+  /* roof */
+  var roofGrad=sg.createLinearGradient(0,yGlass,0,yRoof);
+  roofGrad.addColorStop(0,'#2f68d8');roofGrad.addColorStop(1,'#4a8cf2');
+  poly([-W*0.76,yGlass, W*0.76,yGlass, W*0.68,yRoof, -W*0.68,yRoof],roofGrad);
+  stripes(W*0.76,yGlass,W*0.68,yRoof,sw,sgap);
+  sg.fillStyle='#7db0ff';
+  sg.fillRect(Math.round(-W*0.68),Math.round(yRoof),Math.round(W*1.36),1);
+
+  /* flanks and one shoulder highlight give the body its thickness */
+  var fw=Math.max(1,Math.round(CARW*0.045));
+  sg.fillStyle='rgba(8,20,50,.30)';
+  sg.fillRect(Math.round(-W*0.99),Math.round(yDeck),fw,Math.round(yPanel-yDeck));
+  sg.fillRect(Math.round(W*0.99-fw),Math.round(yDeck),fw,Math.round(yPanel-yDeck));
+  sg.fillStyle='rgba(160,200,250,.22)';
+  sg.fillRect(Math.round(-W*0.95),Math.round(yPanel+1),Math.round(W*1.90),1);
   sg.restore();
 }
 
@@ -465,7 +467,7 @@ function render(ms){
   var ahead=roadX(sCar+340)-roadX(sCar);
   var tgt=Math.max(-1,Math.min(1,ahead/620))*-0.62;
   drift+=(tgt-drift)*(1-Math.exp(-dt*2.6));
-  camX=roadX(camZ)+drift*ROADH*0.35;
+  camX=roadX(camZ)+0.75*(roadX(sCar)-roadX(camZ))+drift*ROADH*0.35;
   var carX=roadX(sCar)+drift*ROADH;
 
   var y,z,s,i;
