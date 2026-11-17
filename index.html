@@ -81,8 +81,11 @@ button{cursor:pointer}
 .lb-color{width:6px;height:6px;border-radius:1px;flex-shrink:0}
 .lb-name{font-weight:700;flex:1}
 .lb-wins{opacity:.7;text-align:right}
-.trackside{border:1px solid var(--line);height:100%;width:100%;min-width:0;display:grid;grid-template-rows:1fr;overflow:hidden}
-.trackside canvas{width:100%;height:100%;display:block;image-rendering:pixelated;background:#0a2233}
+/* the canvas is pinned to the panel: if it is left in flow its width/height
+   attributes feed an intrinsic ratio back into layout, the element ends up
+   taller than the panel, and the clipped strip at the bottom is the car */
+.trackside{border:1px solid var(--line);height:100%;width:100%;min-width:0;display:grid;grid-template-rows:1fr;overflow:hidden;position:relative}
+.trackside canvas{position:absolute;inset:0;width:100%;height:100%;display:block;image-rendering:pixelated;background:#0a2233}
 .racehead{width:100%;border-bottom:1px solid var(--line);display:grid;grid-template-columns:repeat(10,minmax(0,1fr))}
 .lanehead{min-width:0;border-right:1px solid var(--dim);text-align:center;padding:4px 0;font-size:clamp(3px,.65vw,5px);overflow:hidden;white-space:nowrap}
 .lanehead b{display:block;font-size:clamp(6px,1vw,8px);margin-bottom:1px}
