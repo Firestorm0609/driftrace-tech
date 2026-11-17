@@ -81,7 +81,8 @@ button{cursor:pointer}
 .lb-color{width:6px;height:6px;border-radius:1px;flex-shrink:0}
 .lb-name{font-weight:700;flex:1}
 .lb-wins{opacity:.7;text-align:right}
-.trackside{border:1px solid var(--line);height:100%;width:100%;min-width:0;display:grid;grid-template-rows:38px 1fr;overflow:hidden}
+.trackside{border:1px solid var(--line);height:100%;width:100%;min-width:0;display:grid;grid-template-rows:1fr;overflow:hidden}
+.trackside canvas{width:100%;height:100%;display:block;image-rendering:pixelated;background:#0a2233}
 .racehead{width:100%;border-bottom:1px solid var(--line);display:grid;grid-template-columns:repeat(10,minmax(0,1fr))}
 .lanehead{min-width:0;border-right:1px solid var(--dim);text-align:center;padding:4px 0;font-size:clamp(3px,.65vw,5px);overflow:hidden;white-space:nowrap}
 .lanehead b{display:block;font-size:clamp(6px,1vw,8px);margin-bottom:1px}
@@ -157,7 +158,6 @@ body.theatre .top .muted,body.theatre .top .usd{display:none}
   <div class="muted">AUTONOMOUS RACE OPERATOR // ROBINHOOD CHAIN</div>
   <span class="usd" id="ethUsd"></span>
   <button class="sound-btn" id="soundBtn" title="Toggle sound">&#128266;</button>
-  <button class="sound-btn" id="theatreBtn" title="Full-window race view">&#9974; THEATRE</button>
   <button class="wallet" id="walletBtn">CONNECT</button>
 </header>
 <main class="world">
@@ -218,9 +218,6 @@ body.theatre .top .muted,body.theatre .top .usd{display:none}
           WINNER <span id="win">&mdash;</span>
         </div>
       </div>
-      <div class="test-race">
-        <button class="test-btn" id="testBtn">&#9654; RUN TEST RACE</button>
-      </div>
     </section>
     <section class="rooms" id="rooms">
       <button class="race-room active" data-tier="1"><span class="tier">$1</span><span class="roommeta">ROOM 01 // OPEN</span></button>
@@ -241,13 +238,7 @@ body.theatre .top .muted,body.theatre .top .usd{display:none}
     </section>
   </aside>
   <section class="trackside">
-    <div class="racehead" id="heads"></div>
-    <div class="track" id="track">
-      <div class="startline"></div>
-      <div class="finish"></div>
-      <div class="fair">PROVABLY FAIR // COMMIT - BET - REVEAL - SETTLE</div>
-      <div class="test-badge" id="testBadge" style="display:none">TEST MODE</div>
-    </div>
+    <canvas id="scene"></canvas>
   </section>
 </main>
 <div class="theatre-hud" id="theatreHud">
@@ -257,7 +248,6 @@ body.theatre .top .muted,body.theatre .top .usd{display:none}
 <div class="winner" id="winner">
   <div>
     <div class="muted">RACE SETTLED BY DRIFT AGENT</div>
-    <div class="winner-car" id="winnerCar"></div>
     <h1 id="winnerName">WINNER</h1>
     <p id="winnerPool"></p>
     <button onclick="document.getElementById('winner').classList.remove('on')">RETURN TO HUB</button>
@@ -318,163 +308,190 @@ var SFX={
 $('soundBtn').onclick=function(){soundEnabled=!soundEnabled;$('soundBtn').textContent=soundEnabled?'\u{1f50a}':'\u{1f507}';$('soundBtn').classList.toggle('muted-sound',!soundEnabled);SFX.click()};
 document.addEventListener('click',function(){initAudio()},{once:true});
 
-/* ── SVG CAR (hub view, small) ── */
-function carSVG(c){
-  return '<svg viewBox="0 0 18 40" fill="none" xmlns="http://www.w3.org/2000/svg">'
-    +'<g class="speed-lines">'
-    +'<line class="speed-line" x1="5" y1="38" x2="5" y2="42" stroke="'+c.stroke+'" stroke-width=".5" opacity=".5"/>'
-    +'<line class="speed-line" x1="9" y1="38" x2="9" y2="44" stroke="'+c.stroke+'" stroke-width=".6" opacity=".6"/>'
-    +'<line class="speed-line" x1="13" y1="38" x2="13" y2="42" stroke="'+c.stroke+'" stroke-width=".5" opacity=".5"/>'
-    +'</g>'
-    +'<circle class="exhaust-puff" cx="7" cy="36" r="1.5" fill="'+c.fill+'" opacity=".4"/>'
-    +'<circle class="exhaust-puff" cx="11" cy="36" r="1.5" fill="'+c.fill+'" opacity=".3" style="animation-delay:.3s"/>'
-    +'<rect x="2" y="32" width="14" height="2" rx="1" stroke="'+c.stroke+'" stroke-width=".8" fill="'+c.fill+'" fill-opacity=".15"/>'
-    +'<rect x="1" y="28" width="3" height="5" rx="1" stroke="'+c.stroke+'" stroke-width=".6" fill="'+c.fill+'" fill-opacity=".3"/>'
-    +'<rect x="14" y="28" width="3" height="5" rx="1" stroke="'+c.stroke+'" stroke-width=".6" fill="'+c.fill+'" fill-opacity=".3"/>'
-    +'<path d="M5 32 L4 14 Q4 7 9 5 Q14 7 14 14 L13 32 Z" stroke="'+c.stroke+'" stroke-width=".8" fill="'+c.fill+'" fill-opacity=".2"/>'
-    +'<ellipse cx="9" cy="20" rx="2.5" ry="3.5" stroke="'+c.stroke+'" stroke-width=".6" fill="'+c.fill+'" fill-opacity=".35"/>'
-    +'<rect x="2" y="12" width="2.5" height="4.5" rx="1" stroke="'+c.stroke+'" stroke-width=".6" fill="'+c.fill+'" fill-opacity=".3"/>'
-    +'<rect x="13.5" y="12" width="2.5" height="4.5" rx="1" stroke="'+c.stroke+'" stroke-width=".6" fill="'+c.fill+'" fill-opacity=".3"/>'
-    +'<path d="M7 7 L9 3 L11 7" stroke="'+c.stroke+'" stroke-width=".7" fill="'+c.fill+'" fill-opacity=".25"/>'
-    +'<line x1="9" y1="5" x2="9" y2="32" stroke="'+c.stroke+'" stroke-width=".4" opacity=".5"/>'
-    +'<circle cx="7.5" cy="5.5" r=".8" fill="'+c.fill+'" opacity=".9"/>'
-    +'<circle cx="10.5" cy="5.5" r=".8" fill="'+c.fill+'" opacity=".9"/>'
-    +'</svg>';
+/* ── SPRITE-STACK SCENE ──────────────────────────────────────────────
+   A pixel-art fighter over stacked islands. The scene renders into a
+   buffer a few times smaller than the panel and the browser scales it
+   up; every island is a column of flat slices projected by hand. */
+var SCV=$('scene'),sg=SCV?SCV.getContext('2d'):null;
+var RW=336,RH=287,PXPX=3;
+var MSZ=256,HGT=new Uint8Array(MSZ*MSZ),OCC=new Uint8Array((MSZ>>2)*(MSZ>>2));
+function hsh(x,y){var n=Math.sin(x*127.1+y*311.7)*43758.5453;return n-Math.floor(n)}
+(function(){
+  function vn(x,y){
+    var xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi;
+    var u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf);
+    var a=hsh(xi,yi),b=hsh(xi+1,yi),c=hsh(xi,yi+1),d=hsh(xi+1,yi+1);
+    return (a*(1-u)+b*u)*(1-v)+(c*(1-u)+d*u)*v;
+  }
+  for(var y=0;y<MSZ;y++)for(var x=0;x<MSZ;x++){
+    var n=vn(x*0.024,y*0.024)*0.70+vn(x*0.065+11.7,y*0.065+4.2)*0.30;
+    n=(n-0.45)*3.4;
+    var h=n>0?Math.min(10,1+Math.floor(n*8)):0;
+    HGT[y*MSZ+x]=h;
+    if(h>1)OCC[(y>>2)*(MSZ>>2)+(x>>2)]=1;
+  }
+})();
+function hAt(x,z){var ix=((x%MSZ)+MSZ)%MSZ|0,iz=((z%MSZ)+MSZ)%MSZ|0;return HGT[iz*MSZ+ix]}
+
+var cam={x:128,z:0,y:34,pitch:0.14,f:230};
+var HZ=Math.round(RH*0.42),Y0=HZ-cam.f*Math.tan(cam.pitch),VU=2.2;
+
+if(SCV){
+  SCV.width=RW;SCV.height=RH;
+  sg.imageSmoothingEnabled=false;
+  SCV.style.imageRendering='pixelated';
+}
+function sizeScene(){
+  if(!SCV)return;
+  var w=SCV.clientWidth||1008,h=SCV.clientHeight||860;
+  RW=Math.max(160,Math.round(w/PXPX));
+  RH=Math.max(100,Math.round(h/PXPX));
+  SCV.width=RW;SCV.height=RH;
+  HZ=Math.round(RH*0.42);Y0=HZ-cam.f*Math.tan(cam.pitch);
+  sg=RW?SCV.getContext('2d'):null;
+  if(sg)sg.imageSmoothingEnabled=false;
+}
+sizeScene();
+if(window.addEventListener)window.addEventListener('resize',sizeScene);
+
+function proj(wx,wy,wz){
+  var dz=wz-cam.z;if(dz<1)return null;
+  var dy=wy-cam.y;
+  var cp=Math.cos(cam.pitch),sp=Math.sin(cam.pitch);
+  var ry=dy*cp-dz*sp,fz=dy*sp+dz*cp;
+  if(fz<1)return null;
+  return [RW*0.5+(wx-cam.x)/fz*cam.f,Y0-ry/fz*cam.f,fz];
+}
+var COLT=(function(){
+  function bandCol(h,lv,bands){
+    var top=(lv===bands-1);
+    if(h<=1)return top?'#f2e6b6':'#dccb93';
+    if(h<=5)return top?'#6db24e':(lv>bands-3?'#44803a':'#31612c');
+    if(h<=7)return top?'#3f6f33':'#2b5026';
+    return top?'#eef4f7':(lv>=bands/2?'#a8adb3':'#767d85');
+  }
+  var t=[];
+  for(var h=0;h<=10;h++){t[h]=[];for(var b=0;b<4;b++)t[h][b]=bandCol(h,b,4)}
+  return t;
+})();
+
+/* the fighter: drawn once as a stack of tinted silhouettes */
+var JETCV=(function(){
+  var W=72,H=88,S=2,c=document.createElement('canvas');
+  c.width=W*S;c.height=H*S;
+  var x=c.getContext('2d');
+  x.setTransform(S,0,0,S,0,0);
+  function body(){
+    x.beginPath();
+    x.moveTo(0,-26);
+    x.lineTo(3,-14);x.lineTo(5,-4);
+    x.lineTo(25,9);x.lineTo(25,14);x.lineTo(6,13);
+    x.lineTo(11,24);x.lineTo(4,24);x.lineTo(2,28);
+    x.lineTo(-2,28);x.lineTo(-4,24);x.lineTo(-11,24);x.lineTo(-6,13);
+    x.lineTo(-25,14);x.lineTo(-25,9);x.lineTo(-5,-4);x.lineTo(-3,-16);
+    x.closePath();
+  }
+  for(var s=6;s>=0;s--){
+    var f=.45+.55*(6-s)/6;
+    x.save();
+    x.translate(W/2,H/2+34-s*2.2);
+    body();
+    x.fillStyle='rgb('+Math.round(38*f)+','+Math.round(38*f)+','+Math.round(46*f)+')';
+    x.fill();
+    x.lineWidth=1.2;x.strokeStyle='rgb('+Math.round(12*f)+','+Math.round(12*f)+','+Math.round(16*f)+')';
+    x.stroke();
+    x.restore();
+  }
+  x.translate(W/2,H/2+34);
+  /* canopy */
+  x.fillStyle='#9fe6f2';x.beginPath();x.ellipse(0,-11,3.2,7,0,0,Math.PI*2);x.fill();
+  x.strokeStyle='#2a4a52';x.lineWidth=1;x.stroke();
+  /* wingtips */
+  x.fillStyle='#ff7a18';x.fillRect(-26,10,3,4);x.fillRect(23,10,3,4);
+  /* engine nozzles */
+  x.fillStyle='#1a1a20';x.fillRect(-4.5,18,3.5,5);x.fillRect(1,18,3.5,5);
+  return c;
+})();
+
+function drawJet(cx,cy,t,bank,scale){
+  sg.save();sg.translate(cx,cy);sg.rotate(bank);sg.scale(scale,scale);
+  var w=JETCV.width/2,h=JETCV.height/2;
+  sg.drawImage(JETCV,-w*0.5,-h*0.5,w,h);
+  var fl=.55+Math.sin(t*26)*.45;
+  sg.fillStyle='#ff8a1a';sg.fillRect(-9,26,6,5+fl*9);sg.fillRect(3,26,6,5+fl*9);
+  sg.fillStyle='#ffe9a8';sg.fillRect(-8,28,4,3+fl*5);sg.fillRect(4,28,4,3+fl*5);
+  sg.restore();
 }
 
-/* ── SPRITE-STACK CAR (theatre view, 80x164) ──
-   A voxel car seen from above: 32 rows of 20 cells, each cell owning a slice
-   range between two heights. Every slice is one flat layer, drawn bottom-up
-   and lifted a step, so the volume is the stack. No polygons, no meshes. */
-var VOX=[
-  '.wwwwwwwwwwwwwwwwww.',
-  '.wwwwwwwwwwwwwwwwww.',
-  '.....xx......xx.....',
-  '.....xx......xx.....',
-  '.....xxbbbbbbxx.....',
-  '.....xxbbbbbbxx.....',
-  '..ttt.bbbbbbbb.ttt..',
-  '..ttt.bbbbbbbb.ttt..',
-  '..tttbbbbbbbbbbttt..',
-  '..tttbbbbbbbbbbttt..',
-  '..tttbbbbbbbbbbttt..',
-  '...tt.bbbbbbbb.tt...',
-  '......bbbbbbbb......',
-  '.....bbbbbbbbbb.....',
-  '....ppbccccccbpp....',
-  '....ppbccccccbpp....',
-  '....ppbccccccbpp....',
-  '....ppbccccccbpp....',
-  '....ppbbbbbbbbpp....',
-  '....ppbbbbbbbbpp....',
-  '..ttt.bbbbbbbb.ttt..',
-  '..tttbbbbbbbbbbttt..',
-  '..tttbbbbbbbbbbttt..',
-  '...tt.bbbbbbbb.tt...',
-  '......vvvvvvvv......',
-  '......vvvvvvvv......',
-  '.......vvvvvv.......',
-  '.......vvvvvv.......',
-  '........vvvv........',
-  '........vvvv........',
-  '...yyyyyyyyyyyyyy...',
-  '...yyyyyyyyyyyyyy...'
-];
-var VOX_LO={t:1,y:1,v:1,p:1,b:1,x:4,w:7,c:4};
-var VOX_HI={t:2,y:2,v:3,p:4,b:5,x:6,w:8,c:9};
-var VOX_TOP=9;
-var stackCanvases=[];
+var FOAM=(function(){
+  var c=document.createElement('canvas');c.width=c.height=16;
+  var x=c.getContext('2d');
+  for(var i=0;i<6;i++){
+    x.globalAlpha=.14+hsh(i,9)*.22;x.fillStyle='#ffffff';
+    x.fillRect(Math.floor(hsh(i,2)*16),Math.floor(hsh(i,6)*16),1,1);
+  }
+  return sg?sg.createPattern(c,'repeat'):null;
+})();
 
-function hexToRgb(h){
-  var n=parseInt(String(h).replace('#',''),16);
-  return [(n>>16)&255,(n>>8)&255,n&255];
-}
-function shade(rgb,amt){
-  var r=rgb[0],g=rgb[1],b=rgb[2];
-  if(amt<0){var f=1+amt;r*=f;g*=f;b*=f}
-  else{r+=(255-r)*amt;g+=(255-g)*amt;b+=(255-b)*amt}
-  return 'rgb('+Math.round(r)+','+Math.round(g)+','+Math.round(b)+')';
-}
-function voxLo(ch){return VOX_LO[ch]||0}
-function voxHi(ch){return VOX_HI[ch]||0}
+function render(ms){
+  if(!sg)return;
+  var dt=Math.min(.05,(ms-(render.last||ms))/1000);render.last=ms;
+  cam.z+=14*dt;
+  cam.x=128+Math.sin(cam.z*0.010)*46+Math.sin(cam.z*0.031)*9;
+  var bank=Math.cos(cam.z*0.010)*0.13;
 
-function drawStack(ctx,W,H,colors){
-  ctx.clearRect(0,0,W,H);
-  ctx.imageSmoothingEnabled=false;
-  var P=Math.floor(W/20),L=Math.max(2,Math.round(P*.7));
-  var x0=Math.round((W-20*P)/2),y0=H-32*P-8;
-  var base=hexToRgb(colors.fill);
-  ctx.save();ctx.globalAlpha=.28;ctx.fillStyle='#000';
-  ctx.beginPath();ctx.ellipse(W/2,y0+31*P+2,W*.33,P*1.1,0,0,Math.PI*2);ctx.fill();
-  ctx.restore();
-  for(var s=1;s<=VOX_TOP;s++){
-    var lift=(s-1)*L;
-    for(var r=0;r<32;r++){
-      var row=VOX[r];
-      for(var c=0;c<20;c++){
-        var ch=row.charAt(c);
-        if(ch==='.')continue;
-        if(s<voxLo(ch)||s>voxHi(ch))continue;
-        var top=(s===voxHi(ch)),col;
-        if(ch==='t')col=top?'#1b1b1b':'#0e0e0e';
-        else if(ch==='w'||ch==='y')col=top?colors.stroke:shade(base,-.05);
-        else if(ch==='c')col=top?'rgba(150,245,255,.9)':'rgba(110,215,235,'+(0.20+0.05*s).toFixed(2)+')';
-        else if(top)col=shade(base,.26);
-        else col=shade(base,-.52+.07*s);
-        ctx.fillStyle=col;
-        ctx.fillRect(x0+c*P,y0+r*P-lift,P,P);
+  var sky=sg.createLinearGradient(0,0,0,HZ+24);
+  sky.addColorStop(0,'#3996d0');sky.addColorStop(.55,'#8fd1ea');sky.addColorStop(1,'#e4f4fa');
+  sg.fillStyle=sky;sg.fillRect(0,0,RW,HZ+24);
+
+  var sea=sg.createLinearGradient(0,HZ,0,RH);
+  sea.addColorStop(0,'#56a6d0');sea.addColorStop(.18,'#2f88bb');sea.addColorStop(1,'#0a4576');
+  sg.fillStyle=sea;sg.fillRect(0,HZ,RW,RH-HZ);
+
+  if(FOAM){
+    sg.save();sg.translate(-(cam.x*6)%16,-((cam.z*11)%16));
+    sg.fillStyle=FOAM;sg.fillRect(0,HZ+4,RW+16,RH-HZ+16);sg.restore();
+  }
+
+  var BL=MSZ>>2;
+  for(var bz=Math.min(BL-1,((cam.z+100)>>2));bz>((cam.z+14)>>2);bz--){
+    for(var bx=((cam.x-72)>>2);bx<((cam.x+72)>>2);bx++){
+      var bxx=((bx%BL)+BL)%BL,bzz=((bz%BL)+BL)%BL;
+      if(!OCC[bzz*BL+bxx])continue;
+      for(var y4=0;y4<4;y4++){
+        var zz=(bz<<2)+y4;
+        for(var x4=0;x4<4;x4++){
+          var xx=(bx<<2)+x4;
+          var h=hAt(xx,zz);if(h<1)continue;
+          var top=proj(xx,h*VU,zz+0.5),bot=proj(xx,0,zz+0.5);
+          if(!top||!bot)continue;
+          var sz=cam.f/top[2];
+          if(sz<.9||sz>26)continue;
+          var px=top[0]-sz*0.5;
+          if(px<-sz||px>RW)continue;
+          var bands=Math.max(2,Math.min(h,4)),dyTop=top[1],dyBot=bot[1];
+          for(var b=bands-1;b>=0;b--){
+            var yA=dyBot+(dyTop-dyBot)*(b/bands);
+            var yB=dyBot+(dyTop-dyBot)*((b+1)/bands);
+            sg.fillStyle=COLT[Math.min(h,10)][Math.min(b,3)];
+            sg.fillRect(px,yB,Math.max(1,sz),Math.max(1,yA-yB));
+          }
+          sg.fillStyle=COLT[Math.min(h,10)][Math.min(bands-1,3)];
+          sg.fillRect(px,dyTop-sz*0.22,Math.max(1,sz),sz*0.30);
+        }
       }
     }
   }
-}
-function makeStackCanvas(W,H){
-  var cv=document.createElement('canvas');
-  cv.width=W;cv.height=H;cv.className='car-stack';
-  return cv;
-}
-function paintWinnerCar(colors){
-  var host=$('winnerCar');
-  host.innerHTML='';
-  var cv=makeStackCanvas(240,464);
-  drawStack(cv.getContext('2d'),240,464,colors);
-  host.appendChild(cv);
-  host.style.setProperty('--winner-glow',colors.fill);
-}
 
-/* ── THEATRE MODE ── */
-function carSpan(){
-  if(!document.body.classList.contains('theatre'))return 42;
-  var cv=stackCanvases[0];
-  if(!cv)return 164;
-  var h=cv.getBoundingClientRect().height;
-  return h>40?Math.round(h):42;
+  drawJet(RW*0.5,RH*0.60,ms/1000,bank,1.0);
+
+  sg.fillStyle='#e6f2f8';sg.font='7px ui-monospace,monospace';
+  sg.fillText('AMMO 300',7,RH-7);
+  for(var i=0;i<4;i++){sg.fillRect(56+i*8,RH-11,6,4)}
+
+  requestAnimationFrame(render);
 }
-function trackMax(){return Math.max(45,$('track').clientHeight-carSpan())}
-function relayout(){
-  var m=trackMax();
-  for(var i=0;i<10;i++){
-    var c=$('car'+i);if(!c)continue;
-    var t=parseFloat(c.style.top);if(isNaN(t))t=8;
-    c.style.top=Math.min(t,m)+'px';
-  }
-}
-function syncHud(){
-  if(!document.body.classList.contains('theatre'))return;
-  $('thRace').textContent=$('raceId').textContent;
-  $('thStatus').textContent=$('raceStatus').textContent;
-  $('thPool').textContent=$('pool').textContent;
-  $('thTimer').textContent=$('timer').textContent;
-}
-function setTheatre(on){
-  document.body.classList.toggle('theatre',!!on);
-  $('theatreBtn').classList.toggle('on',!!on);
-  relayout();syncHud();
-}
-$('theatreBtn').onclick=function(){initAudio();SFX.click();setTheatre(!document.body.classList.contains('theatre'))};
-$('thExit').onclick=function(){SFX.click();setTheatre(false)};
-document.addEventListener('keydown',function(e){if(e.key==='Escape')setTheatre(false)});
-window.addEventListener('resize',relayout);
-setInterval(syncHud,400);
+if(sg)requestAnimationFrame(render);
 
 /* ── STATE ── */
 var provider,signer,contract,rid=0,lastWinner=null,selectedTier=1;
@@ -520,21 +537,9 @@ function renderHistory(){
 
 /* ── BUILD UI ── */
 function build(){
-  $('heads').innerHTML=D.map(function(n,i){
-    return '<div class="lanehead"><b>'+( i+1)+'</b>'+n+'<div class="bet-count" id="bc'+i+'"></div></div>';
-  }).join('');
   $('driver').innerHTML=D.map(function(n,i){
     return '<option value="'+i+'">'+(i+1)+' // '+n+'</option>';
   }).join('');
-  for(var i=0;i<10;i++){
-    var l=document.createElement('div');l.className='lane';
-    l.innerHTML='<div class="car" id="car'+i+'" style="--car-glow:'+DC[i].fill+'66">'+carSVG(DC[i])+'</div>';
-    var cd=l.firstChild;
-    var cvs=makeStackCanvas(80,164);
-    drawStack(cvs.getContext('2d'),80,164,DC[i]);
-    cd.appendChild(cvs);stackCanvases[i]=cvs;
-    $('track').appendChild(l);
-  }
   var rooms=document.querySelectorAll('.race-room');
   for(var r=0;r<rooms.length;r++){
     (function(x){
@@ -559,127 +564,6 @@ var chatIdx=0,idleTimer;
 function startIdleChat(){clearInterval(idleTimer);chatIdx=0;agentSay(idleChat[0]);idleTimer=setInterval(function(){chatIdx=(chatIdx+1)%idleChat.length;agentSay(idleChat[chatIdx])},4200)}
 startIdleChat();
 function flashEvent(msg){agentSay(msg,true);clearTimeout(flashEvent._t);flashEvent._t=setTimeout(function(){startIdleChat()},6000)}
-
-/* ── TEST RACE HELPERS ── */
-function setRacingClass(on){for(var i=0;i<10;i++){var lane=$('car'+i)?$('car'+i).parentElement:null;if(lane){if(on)lane.classList.add('racing');else lane.classList.remove('racing')}}}
-
-/* ── TEST RACE ── */
-$('testBtn').onclick=function(){
-  initAudio();
-  if(testRunning)return;
-  testRunning=true;
-  var btn=$('testBtn');
-  btn.classList.add('running');
-  btn.textContent='\u25cf RACING...';
-  $('testBadge').style.display='block';
-  testRaceId++;
-  var tRid=testRaceId;
-
-  (async function(){
-    try{
-      /* COMMIT */
-      $('raceId').textContent='#'+tRid+'T';
-      $('raceStatus').textContent='COMMIT';
-      $('pool').textContent='0.0000 ETH';
-      $('commit').textContent='0x'+Math.random().toString(16).slice(2,18)+'\u2026';
-      $('seed').textContent='HIDDEN';
-      $('win').textContent='\u2014';
-      flashEvent('test race #'+tRid+' created. commit locked.');
-      setTestCars('pending');
-      await sleep(1500);
-
-      /* BETTING */
-      $('raceStatus').textContent='BETTING';
-      var timer=8;
-      $('timer').textContent='00:'+String(timer).padStart(2,'0');
-      flashEvent('betting window open. '+timer+'s.');
-      SFX.raceStart();
-      var bets=rand(1,5);
-      for(var b=0;b<bets;b++){
-        await sleep(800+Math.random()*600);
-        var driver=rand(0,9);
-        var amt=(Math.random()*.05+.005).toFixed(4);
-        $('pool').textContent=(parseFloat($('pool').textContent||'0')+Number(amt)).toFixed(4)+' ETH';
-        SFX.bet();
-        agentSay('test bet: '+amt+' ETH \u2192 '+D[driver]+'.',true);
-        for(var i=0;i<10;i++)try{$('bc'+i).textContent=rand(0,3)+' bets';}catch(e){}
-      }
-      for(var t=timer;t>0;t--){$('timer').textContent='00:'+String(t).padStart(2,'0');await sleep(1000)}
-      $('timer').textContent='00:00';
-
-      /* RACING */
-      $('raceStatus').textContent='RUNNING';
-      flashEvent('grid locked. wheels down.');
-      SFX.raceStart();
-      setRacingClass(true);
-      var winnerIdx=rand(0,9);
-      var steps=12;
-      for(var s=0;s<steps;s++){
-        var max=trackMax();
-        for(var i2=0;i2<10;i2++){
-          var c=$('car'+i2);
-          var progress=(s+1)/steps;
-          var base=30+progress*(max-60);
-          if(i2===winnerIdx)base=30+progress*(max-30);
-          else base+=Math.random()*30-15;
-          c.style.top=Math.min(Math.max(8,base),max)+'px';
-        }
-        if(s%3===0)SFX.racing();
-        await sleep(400);
-      }
-      for(var i3=0;i3<10;i3++){
-        var c2=$('car'+i3);
-        c2.style.top=i3===winnerIdx?max+'px':(carSpan()+Math.random()*Math.max(24,max-carSpan()-40))+'px';
-      }
-      setRacingClass(false);
-      $('seed').textContent='0x'+Math.random().toString(16).slice(2,18)+'\u2026';
-
-      /* SETTLE */
-      await sleep(600);
-      $('raceStatus').textContent='SETTLED';
-      $('win').textContent=D[winnerIdx];
-      $('win').style.color=DC[winnerIdx].fill;
-      var pool=parseFloat($('pool').textContent)||0;
-      SFX.settle();
-
-      wins[winnerIdx]++;totalRaces++;
-      addHistory(tRid,winnerIdx,pool,true);
-      updateLeaderboard();
-
-      /* WINNER */
-      $('winnerName').textContent=D[winnerIdx];
-      $('winnerName').style.color=DC[winnerIdx].fill;
-      var poolUsd=ethPrice?(pool*ethPrice).toFixed(2):'';
-      $('winnerPool').textContent='POOL '+pool.toFixed(4)+' ETH'+(poolUsd?' (~$'+poolUsd+')':'');
-      paintWinnerCar(DC[winnerIdx]);
-      $('winnerCar').style.setProperty('--winner-glow',DC[winnerIdx].fill);
-      $('winner').classList.add('on');
-      SFX.win();
-      flashEvent(D[winnerIdx]+' wins test race #'+tRid+'!');
-
-      /* RESET */
-      await sleep(1500);
-      btn.classList.remove('running');btn.textContent='\u25b6 RUN TEST RACE';
-      testRunning=false;
-      $('testBadge').style.display='none';
-      $('commit').textContent='\u2014';$('seed').textContent='HIDDEN';$('win').textContent='\u2014';$('win').style.color='';
-      for(var i4=0;i4<10;i4++)try{$('bc'+i4).textContent='';}catch(e){}
-      setTestCars('pending');
-    }catch(err){
-      console.error('Test race error:',err);
-      testRunning=false;
-      btn.classList.remove('running');btn.textContent='\u25b6 RUN TEST RACE';
-      $('testBadge').style.display='none';
-    }
-  })();
-};
-
-function setTestCars(status){
-  for(var i=0;i<10;i++){
-    var c=$('car'+i);
-    if(status==='pending')c.style.top='8px';
-  }
-}
 
 /* ── WALLET ── */
 async function connect(){
@@ -731,14 +615,10 @@ async function poll(){
       else if(status==='SETTLED'){flashEvent('race #'+rid+' settled. chain confirms.');SFX.settle()}
       prevStatus=status;
     }
-    for(var i2=0;i2<10;i2++){var lane=$('car'+i2)?$('car'+i2).parentElement:null;if(lane){if(status==='RUNNING')lane.classList.add('racing');else lane.classList.remove('racing')}}
-    var max=trackMax();
-    for(var i3=0;i3<10;i++){var c2=$('car'+i3),top=8;if(r[7]||r[8])top=i3===Number(r[9])?max:carSpan()+Math.random()*Math.max(24,max-carSpan()-40);else if(r[6])top=30+Math.random()*Math.max(24,max*.55);c2.style.top=Math.min(top,max)+'px'}
     if(r[8]&&r[7]&&Number(r[9])!==lastWinner){
       lastWinner=Number(r[9]);var w=DC[lastWinner];
       $('winnerName').textContent=D[lastWinner];$('winnerName').style.color=w.fill;
       $('winnerPool').textContent='POOL '+pool.toFixed(4)+' ETH'+(poolUsd?' (~$'+poolUsd+')':'');
-      paintWinnerCar(w);$('winnerCar').style.setProperty('--winner-glow',w.fill);
       $('winner').classList.add('on');
       wins[lastWinner]++;totalRaces++;addHistory(rid,lastWinner,pool);updateLeaderboard();
       flashEvent(D[lastWinner]+' wins race #'+rid+'!');SFX.win();
