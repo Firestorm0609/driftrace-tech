@@ -911,14 +911,15 @@ function render(ms){
         }
       }
       rivX=roadX(rivZ)+rivDrift*ROADH;
-      if(closing>4&&bumpT<=0){
-        bumpMag=Math.min(1,Math.max(sideHit?.25:.16,closing/(sideHit?240:760)));
-        if(sideHit){
+      if(bumpT<=0){
+        var hardHit=closing>4;
+        bumpMag=hardHit?Math.min(1,Math.max(sideHit?.25:.16,closing/(sideHit?240:760))):.10;
+        bumpT=hardHit?.32:.18;
+        if(hardHit&&sideHit){
           var scrape=0.012+0.028*bumpMag;
           SPD=Math.max(0,SPD*(1-scrape));
           rivSpd=Math.max(0,rivSpd*(1-scrape*0.65));
         }
-        bumpT=.32;
         sparkRequest={side:sideHit,nx:nx,nz:nz,mag:bumpMag};
         SFX.bump(bumpMag);
       }
@@ -939,14 +940,15 @@ function render(ms){
 
   if(sparkRequest){
     var playerSX=RW*0.5+(carX-camX)*FOC/CARD;
-    var sx=playerSX,sy=RH*0.80-2,rv;
-    if(sparkRequest.side){
-      sx+=sparkRequest.nx*CARW*0.52;
-      sy-=CARW*0.34;
-    }else if(sparkRequest.nz>0){
-      rv=rivalProjection(HZY,camX);
-      if(rv){sx=rv.x;sy=rv.y-2;}
-    }
+    var sx=playerSX,sy=RH*0.80-2,rv=rivalProjection(HZY,camX);
+    if(rv){
+      /* Between the cars, not at the position the rival was shoved to after
+         the overlap was resolved. */
+      sx=(playerSX+rv.x)*0.5;
+      if(sparkRequest.side)sy=RH*0.80-CARW*0.32;
+      else if(rv.y<RH*0.80)sy=(rv.y+(RH*0.80-CARW*0.79))*0.5;
+      else sy=(rv.y+RH*0.80)*0.5;
+    }else if(sparkRequest.side)sy-=CARW*0.32;
     addSparks(sx,sy,sparkRequest.side,sparkRequest.nx,sparkRequest.mag);
     sparkRequest=null;
   }
