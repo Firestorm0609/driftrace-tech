@@ -299,11 +299,29 @@ function beep(freq,dur,type,vol){
     o.start();o.stop(audioCtx.currentTime+dur);
   }catch(e){}
 }
+function noiseBurst(dur,vol,freq,q){
+  if(!soundEnabled||!audioCtx)return;
+  try{
+    var t=audioCtx.currentTime,n=Math.floor(audioCtx.sampleRate*dur);
+    var b=audioCtx.createBuffer(1,n,audioCtx.sampleRate),d=b.getChannelData(0),i;
+    for(i=0;i<n;i++)d[i]=(Math.random()*2-1)*(1-i/n);
+    var src=audioCtx.createBufferSource();src.buffer=b;
+    var f=audioCtx.createBiquadFilter();f.type='bandpass';f.frequency.value=freq;f.Q.value=q||1.2;
+    var g=audioCtx.createGain();
+    g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);
+    src.connect(f);f.connect(g);g.connect(audioCtx.destination);src.start(t);
+  }catch(e){}
+}
 var SFX={
   bet:function(){beep(880,.08,'square',.1);setTimeout(function(){beep(1100,.06,'square',.08)},60)},
   raceStart:function(){[440,550,660,880].forEach(function(f,i){setTimeout(function(){beep(f,.12,'sawtooth',.08)},i*80)})},
   count:function(){beep(560,.09,'square',.09)},
-  bump:function(){beep(110,.10,'square',.14);setTimeout(function(){beep(80,.09,'square',.10)},35)},
+  bump:function(v){
+    v=Math.max(.15,Math.min(1,v||.5));
+    beep(68,.18,'triangle',.07+.07*v);
+    setTimeout(function(){beep(150,.06,'square',.035+.035*v)},12);
+    noiseBurst(.08+.08*v,.05+.08*v,1400+700*v,1.5);
+  },
   racing:function(){beep(120,.3,'sawtooth',.04)},
   settle:function(){beep(660,.15,'sine',.12);setTimeout(function(){beep(880,.15,'sine',.1)},120);setTimeout(function(){beep(1100,.2,'sine',.08)},240)},
   win:function(){[523,659,784,1047].forEach(function(f,i){setTimeout(function(){beep(f,.18,'sine',.12)},i*100)})},
@@ -457,7 +475,7 @@ var ASPH=(function(){
   return sg?sg.createPattern(c,'repeat'):null;
 })();
 
-var camZ=0,camX=roadX(0),drift=0;
+var camZ=0,camX=roadX(0),drift=0,driftV=0;
 var smoke=[],nextPuff=0;
 
 /* ── MANUAL RUN ──
@@ -465,9 +483,9 @@ var smoke=[],nextPuff=0;
    wheel has to earn the line back while the red car holds its own pace. */
 var MAXSPD=1500,REVSPD=120,RUNLEN=48000,RUNTIME=60,HUDTOP=700;
 var mode='idle',runT=0,runEnd=0,finishZ=0,braking=false,raceWon=false;
-var countT=0,countStep=0,startFlash=0,bumpT=0;
+var countT=0,countStep=0,startFlash=0,bumpT=0,bumpMag=0;
 var runStartZ=0;
-var rivZ=0,rivX=0,rivSpd=60,rivDrift=0.28,rivSteer=0,rivBrake=false,rivDone=false,rivT=0,rivPlan=0;
+var rivZ=0,rivX=0,rivSpd=60,rivDrift=0.28,rivDriftV=0,rivSteer=0,rivBrake=false,rivDone=false,rivT=0,rivPlan=0;
 var keys={l:0,r:0,u:0,d:0},steerV=0,offRoad=false;
 var ONG=0.63;   /* drift past this and a wheel is on the grass */
 
@@ -528,7 +546,7 @@ function startRun(){
   finishZ=runStartZ+RUNLEN;   /* measured from the car, so the bar starts at zero */
   rivZ=runStartZ+30;rivSpd=0;rivDrift=0.65;rivSteer=0;rivBrake=false;rivDone=false;rivT=0;rivPlan=1;
   rivX=roadX(rivZ)+rivDrift*ROADH;
-  bumpT=0;
+  bumpT=0;bumpMag=0;driftV=0;rivDriftV=0;
   smoke=[];STK.length=0;nextPuff=0;
   engineStart();
   SFX.count();
@@ -698,7 +716,7 @@ function drawRival(HZY,visX){
   carPal=CARP.rival;
   sg.save();
   sg.translate(x,y);sg.scale(sc,sc);
-  drawCar(0,0,rivDrift*0.13+rivSteer*0.05,rivBrake);
+  drawCar(0,0,rivDrift*0.13+rivSteer*0.05+rivDriftV*0.06,rivBrake);
   sg.restore();
   carPal=CARP.player;
 }
@@ -707,7 +725,7 @@ function render(ms){
   if(!sg)return;
   var dt=Math.min(.05,(ms-(render.last||ms))/1000);render.last=ms;
 
-  var sCar=camZ+CARD;
+  var sCar=camZ+CARD,drift0=drift,rivDrift0=rivDrift;
   /* how hard the road is bending under the car right now */
   var bendN=Math.max(-1,Math.min(1,(roadX(sCar+170)-roadX(sCar-170))/620));
   offRoad=Math.abs(drift)>ONG;
@@ -734,6 +752,7 @@ function render(ms){
     steerV+=(sIn-steerV)*(1-Math.exp(-dt*14));
     /* the bend shoves you wide, the wheel pulls you back; grass kills grip */
     drift+=(-bendN*1.40*(SPD/MAXSPD)+steerV*1.15*(offRoad?0.45:1))*dt;
+    drift+=driftV*dt;driftV*=Math.exp(-dt*4.8);
     drift=Math.max(-1.05,Math.min(1.05,drift));
     if(mode==='run'){
       /* the brake brings the car to a dead stop and then reverses it */
@@ -780,7 +799,9 @@ function render(ms){
     }else rivPlan=0;
     rLane=Math.max(-0.65,Math.min(0.65,rLane));
     var rPrev=rivDrift;
-    rivDrift+=(rLane-rivDrift)*(1-Math.exp(-dt*2.2));
+    rivDrift+=(rLane-rivDrift)*(1-Math.exp(-dt*2.2))+rivDriftV*dt;
+    rivDriftV*=Math.exp(-dt*4.8);
+    rivDrift=Math.max(-1.05,Math.min(1.05,rivDrift));
     rivSteer=Math.max(-0.7,Math.min(0.7,(rivDrift-rPrev)/Math.max(dt,0.001)*0.7-rb*0.25));
     rivX=roadX(rivZ)+rivDrift*ROADH;
     if(rivZ>=finishZ&&!rivDone){rivDone=true;rivT=runT;}
@@ -799,30 +820,55 @@ function render(ms){
   if(camZ<0){camZ=0;if(SPD<0)SPD=0;}
   sCar=camZ+CARD;
 
-  /* car-to-car contact: resolve the smaller overlap first, so a rear-end
-     scrubs speed while a side scrape shoves you back onto your own line */
+  /* car-to-car contact: split the positional correction between the two
+     cars, then exchange their closing speed through a damped impact. A
+     rear hit shoves the rival forward; a side hit knocks both off line. */
   if(mode==='run'){
     var ddx=(rivDrift-drift)*ROADH,ddz=rivZ-sCar;
-    var carWorldW=CARW*CARD/FOC,hitX=carWorldW*0.90,hitZ=carWorldW*1.02;
+    var carWorldW=CARW*CARD/FOC,hitX=carWorldW*0.92,hitZ=carWorldW*1.02;
     if(Math.abs(ddx)<hitX&&Math.abs(ddz)<hitZ){
       var penX=hitX-Math.abs(ddx),penZ=hitZ-Math.abs(ddz);
-      if(penX<penZ){
-        var away=ddx>0?-1:1;
-        drift=Math.max(-1.05,Math.min(1.05,rivDrift+away*(hitX+2)/ROADH));
-        SPD*=0.94;
-      }else if(ddz>0){
-        camZ=rivZ-hitZ-CARD;
-        if(camZ<0)camZ=0;
-        sCar=camZ+CARD;
-        SPD=Math.min(SPD,rivSpd*0.82);
+      var sideHit=penX<penZ,nx=ddx>=0?1:-1,nz=ddz>=0?1:-1,closing=0;
+      if(sideHit){
+        var pLat=(drift-drift0)/Math.max(dt,0.001)*ROADH;
+        var rLat=(rivDrift-rivDrift0)/Math.max(dt,0.001)*ROADH;
+        closing=Math.max(0,(pLat-rLat)*nx);
+        drift=Math.max(-1.05,Math.min(1.05,drift-nx*penX*0.5/ROADH));
+        rivDrift=Math.max(-1.05,Math.min(1.05,rivDrift+nx*penX*0.5/ROADH));
+        if(closing>4){
+          var jLat=-1.12*((rLat-pLat)*nx)*0.5;
+          driftV=Math.max(-1.6,Math.min(1.6,driftV-nx*jLat/ROADH));
+          rivDriftV=Math.max(-1.6,Math.min(1.6,rivDriftV+nx*jLat/ROADH));
+        }
       }else{
-        rivZ=sCar-hitZ;
-        if(rivZ<0)rivZ=0;
-        rivSpd=Math.min(rivSpd,SPD*0.82);
-        rivX=roadX(rivZ)+rivDrift*ROADH;
+        var sepZ=(rivSpd-SPD)*nz;
+        closing=Math.max(0,-sepZ);
+        var push=penZ*0.5;
+        if(ddz>=0){
+          rivZ+=push;
+          camZ=Math.max(0,camZ-push);
+        }else{
+          camZ+=push;
+          rivZ=Math.max(0,rivZ-push);
+        }
+        sCar=camZ+CARD;
+        if(closing>4){
+          var jZ=-1.15*sepZ*0.5;
+          SPD=Math.max(-REVSPD,SPD-jZ*nz);
+          rivSpd=Math.max(0,rivSpd+jZ*nz);
+        }
       }
-      if(bumpT<=0)SFX.bump();
-      bumpT=.30;
+      rivX=roadX(rivZ)+rivDrift*ROADH;
+      if(closing>4&&bumpT<=0){
+        bumpMag=Math.min(1,Math.max(sideHit?.25:.16,closing/(sideHit?240:760)));
+        if(sideHit){
+          var scrape=0.012+0.028*bumpMag;
+          SPD=Math.max(0,SPD*(1-scrape));
+          rivSpd=Math.max(0,rivSpd*(1-scrape*0.65));
+        }
+        bumpT=.32;
+        SFX.bump(bumpMag);
+      }
     }
   }
   bumpT=Math.max(0,bumpT-dt);
@@ -835,7 +881,7 @@ function render(ms){
   var spdK=Math.max(0,Math.min(1,(Math.abs(SPD)-140)/(MAXSPD-140)));
   CAMH=520-72*spdK*spdK-9*gearJolt;
   var shake=spdK>0.5?Math.round((Math.random()*2-1)*2.0*(spdK-0.5)/0.5):0;
-  if(bumpT>0)shake+=Math.round((Math.random()*2-1)*3.0*(bumpT/.30));
+  if(bumpT>0)shake+=Math.round((Math.random()*2-1)*(1.2+2.8*bumpMag)*(bumpT/.32));
   var HZY=HZ+shake;
 
   var y,z,s,i;
@@ -942,7 +988,7 @@ function render(ms){
 
   var rzDraw=rivZ-camZ,showRival=(mode==='run'||mode==='countdown');
   if(showRival&&rzDraw>CARD)drawRival(HZY,camX);
-  drawCar(RW*0.5+(carX-camX)*FOC/CARD,Math.round(RH*0.80)+Math.sin(ms/72)*(0.35+1.15*spdK)*Math.min(1,Math.abs(SPD)/260),drift*0.13+steerV*0.05);
+  drawCar(RW*0.5+(carX-camX)*FOC/CARD,Math.round(RH*0.80)+Math.sin(ms/72)*(0.35+1.15*spdK)*Math.min(1,Math.abs(SPD)/260),drift*0.13+steerV*0.05+driftV*0.06);
   if(showRival&&rzDraw>=40&&rzDraw<=CARD)drawRival(HZY,camX);
 
   engineUpdate();
