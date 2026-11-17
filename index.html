@@ -363,7 +363,22 @@ function engineStart(){
     var nf=audioCtx.createBiquadFilter();nf.type='bandpass';nf.frequency.value=900;nf.Q.value=0.6;
     var ng=audioCtx.createGain();ng.gain.value=0;
     nz.connect(nf);nf.connect(ng);ng.connect(audioCtx.destination);nz.start();
-    eng={o1:o1,o2:o2,f:f,g:g,nf:nf,ng:ng,nz:nz};
+    /* brake: a pad hiss with a thin squeal that dies as the car slows */
+    var bg=audioCtx.createGain();bg.gain.value=0;bg.connect(audioCtx.destination);
+    var bpf=audioCtx.createBiquadFilter();bpf.type='highpass';bpf.frequency.value=1300;bpf.Q.value=1.1;
+    nz.connect(bpf);bpf.connect(bg);
+    var bo=audioCtx.createOscillator();bo.type='triangle';bo.frequency.value=2100;
+    var bog=audioCtx.createGain();bog.gain.value=0;bo.connect(bog);bog.connect(audioCtx.destination);bo.start();
+    /* grass: low rolling rumble with a gravel band over it */
+    var gg=audioCtx.createGain();gg.gain.value=0;gg.connect(audioCtx.destination);
+    var gf=audioCtx.createBiquadFilter();gf.type='lowpass';gf.frequency.value=430;gf.Q.value=0.7;
+    var gv=audioCtx.createBiquadFilter();gv.type='bandpass';gv.frequency.value=1900;gv.Q.value=0.8;
+    nz.connect(gf);gf.connect(gg);nz.connect(gv);gv.connect(gg);
+    /* drift: a narrow screech that opens up as the car slides */
+    var dg=audioCtx.createGain();dg.gain.value=0;dg.connect(audioCtx.destination);
+    var df=audioCtx.createBiquadFilter();df.type='bandpass';df.frequency.value=1600;df.Q.value=7;
+    nz.connect(df);df.connect(dg);
+    eng={o1:o1,o2:o2,f:f,g:g,nf:nf,ng:ng,nz:nz,bg:bg,bo:bo,bog:bog,gg:gg,df:df,dg:dg};
   }catch(e){eng=null}
 }
 function engineUpdate(){
@@ -380,6 +395,16 @@ function engineUpdate(){
     eng.g.gain.setTargetAtTime(live*cut*(0.032+0.026*load+k*0.022),t,shiftCut>0?0.015:0.10);
     eng.ng.gain.setTargetAtTime(live*(0.010+k*k*0.085),t,0.20);
     eng.nf.frequency.setTargetAtTime(700+k*2700,t,0.20);
+    var run=mode==='run',sp=Math.abs(SPD);
+    var brk=run&&keys.d?Math.max(0,Math.min(1,(sp-70)/320)):0;
+    var grs=run&&offRoad?Math.max(0.35,Math.min(1,sp/300)):0;
+    var scr=run?Math.max(0,Math.min(1,(Math.abs(drift)-0.16)/0.45))*Math.min(1,sp/280):0;
+    eng.bg.gain.setTargetAtTime(live*brk*0.030,t,0.04);
+    eng.bog.gain.setTargetAtTime(live*brk*0.013,t,0.04);
+    eng.bo.frequency.setTargetAtTime(1500+brk*650,t,0.05);
+    eng.gg.gain.setTargetAtTime(live*grs*0.050,t,0.06);
+    eng.dg.gain.setTargetAtTime(live*scr*0.042,t,0.05);
+    eng.df.frequency.setTargetAtTime(1350+scr*750,t,0.05);
   }catch(e){}
 }
 
