@@ -353,6 +353,47 @@ var ASPH=(function(){
 var camZ=0,camX=roadX(0),drift=0;
 var smoke=[],nextPuff=0;
 
+/* ── MANUAL RUN ──
+   One car, one driver, one finish line. The bend at the car pushes it
+   toward the grass and the steering has to earn the line back. */
+var MAXSPD=430,RUNLEN=16000,RUNTIME=60;
+var mode='idle',runT=0,runEnd=0,finishZ=0;
+var keys={l:0,r:0,u:0,d:0},steerV=0,offRoad=false;
+var ONG=0.63;   /* drift past this and a wheel is on the grass */
+
+function fmtT(t){var s=Math.max(0,t);var r=Math.floor(s%60);return Math.floor(s/60)+':'+(r<10?'0':'')+r}
+function shadeText(txt,x,y,col,al){
+  sg.font='bold 8px ui-monospace,Menlo,monospace';sg.textBaseline='top';sg.textAlign=al||'left';
+  var w=sg.measureText(txt).width,ox=al==='right'?-w:(al==='center'?-w*0.5:0);
+  sg.fillStyle='rgba(6,12,4,.62)';
+  sg.fillRect(Math.round(x+ox)-2,Math.round(y)-1,Math.round(w)+4,10);
+  sg.fillStyle=col||'#eaf6d2';sg.fillText(txt,Math.round(x),Math.round(y));
+  sg.textAlign='left';
+}
+function drawHud(){
+  var left=Math.max(0,finishZ-camZ-CARD);
+  if(mode==='idle'){
+    shadeText('PRESS ENTER TO DRIVE',RW*0.5,RH*0.42,'#eaf6d2','center');
+    shadeText('\u2190 \u2192 steer    \u2191 \u2193 speed',RW*0.5,RH*0.42+12,'#a9c98c','center');
+    return;
+  }
+  shadeText('TIME '+fmtT(mode==='run'?runT:runEnd),4,4,(mode==='run'&&runT>50)?'#ff8a4a':'#eaf6d2');
+  shadeText(Math.round(SPD/MAXSPD*220)+' KM/H',RW-4,4,offRoad?'#ffb27a':'#ccff00','right');
+  var pw=RW-8,prog=Math.max(0,Math.min(1,1-left/RUNLEN));
+  sg.fillStyle='rgba(6,12,4,.55)';sg.fillRect(4,16,pw,3);
+  sg.fillStyle=offRoad?'#ff7a3d':'#ccff00';sg.fillRect(4,16,Math.max(1,Math.round(pw*prog)),3);
+  if(mode==='run'&&left<2600)shadeText('FINISH AHEAD',RW*0.5,RH*0.24,'#ffffff','center');
+  if(mode==='done')shadeText('FINISH  '+fmtT(runEnd),RW*0.5,RH*0.40,'#ccff00','center');
+  if(mode==='timeup')shadeText('TIME UP  '+Math.round(RUNLEN-left)+'/'+RUNLEN,RW*0.5,RH*0.40,'#ff7a3d','center');
+  if(mode!=='run')shadeText('PRESS ENTER TO RUN AGAIN',RW*0.5,RH*0.40+13,'#a9c98c','center');
+}
+function startRun(){
+  if(mode==='run')return;
+  mode='run';runT=0;runEnd=0;steerV=0;drift=0;SPD=150;
+  finishZ=camZ+CARD+RUNLEN;   /* measured from the car, so the bar starts at zero */
+  SFX.raceStart();
+}
+
 /* The car is a stack of flat slices pushed back into the screen: every
    surface is a trapezoid, and the two white stripes shrink with it, so
    the rear face, boot deck, rear screen and roof all recede together. */
@@ -461,13 +502,40 @@ function drawCar(cx,cy,tilt){
 function render(ms){
   if(!sg)return;
   var dt=Math.min(.05,(ms-(render.last||ms))/1000);render.last=ms;
-  camZ+=SPD*dt;
 
   var sCar=camZ+CARD;
-  var ahead=roadX(sCar+340)-roadX(sCar);
-  var tgt=Math.max(-1,Math.min(1,ahead/620))*-0.62;
-  drift+=(tgt-drift)*(1-Math.exp(-dt*2.6));
-  camX=roadX(camZ)+0.75*(roadX(sCar)-roadX(camZ))+drift*ROADH*0.35;
+  /* how hard the road is bending under the car right now */
+  var bendN=Math.max(-1,Math.min(1,(roadX(sCar+170)-roadX(sCar-170))/620));
+  offRoad=Math.abs(drift)>ONG;
+
+  if(mode==='idle'){
+    /* attract mode: the car drives itself along the racing line */
+    drift+=(bendN*-0.55-drift)*(1-Math.exp(-dt*2.6));
+    SPD=250;
+  }else{
+    if(mode==='run'){
+      runT+=dt;
+      if(runT>=RUNTIME){runT=RUNTIME;mode='timeup';runEnd=RUNTIME;SFX.error();}
+    }
+    var sIn=(mode==='run')?((keys.l?-1:0)+(keys.r?1:0)):0;
+    steerV+=(sIn-steerV)*(1-Math.exp(-dt*14));
+    /* the bend shoves you wide, the wheel pulls you back; grass kills grip */
+    drift+=(-bendN*1.40*(SPD/MAXSPD)+steerV*1.15*(offRoad?0.45:1))*dt;
+    drift=Math.max(-1.05,Math.min(1.05,drift));
+    if(mode==='run'){
+      if(keys.u)SPD=Math.min(MAXSPD,SPD+240*dt);
+      else if(keys.d)SPD=Math.max(60,SPD-560*dt);
+      else SPD=Math.max(90,SPD-45*dt);
+      var cap=offRoad?MAXSPD*0.45:MAXSPD;
+      if(SPD>cap)SPD=Math.max(cap,SPD-420*dt);
+      if(sCar>=finishZ){mode='done';runEnd=runT;SFX.win();}
+    }else{
+      SPD=Math.max(0,SPD-150*dt);
+    }
+  }
+
+  camZ+=SPD*dt;
+  camX=roadX(camZ)+0.90*(roadX(sCar)-roadX(camZ));
   var carX=roadX(sCar)+drift*ROADH;
 
   var y,z,s,i;
@@ -523,6 +591,36 @@ function render(ms){
   gr.addColorStop(0,'rgba(203,220,196,.75)');gr.addColorStop(1,'rgba(203,220,196,0)');
   sg.fillStyle=gr;sg.fillRect(0,0,RW,hz);
 
+  /* chequered finish: a strip on the tarmac plus a gantry to read it early */
+  var zf=finishZ-camZ;
+  if(mode!=='idle'&&zf>34){
+    var fsc=FOC/zf;
+    var yG=HZ+FOC*CAMH/zf,yG2=HZ+FOC*CAMH/(zf+34);
+    var xF=RW*0.5+(roadX(finishZ)-camX)*fsc,hwF=ROADH*fsc;
+    if(yG<RH+40&&yG2>0){
+      var fTop=Math.max(0,Math.round(yG2)),fBot=Math.min(RH,Math.round(yG)+1);
+      var cols=8,cw=(hwF*2)/cols,cx2,cy2;
+      for(cy2=fTop;cy2<fBot;cy2++){
+        for(cx2=0;cx2<cols;cx2++){
+          sg.fillStyle=(((cy2>>1)+cx2)&1)?'#101014':'#f4f4ee';
+          sg.fillRect(Math.round(xF-hwF+cx2*cw),cy2,Math.max(1,Math.ceil(cw)),1);
+        }
+      }
+      var bh=Math.max(5,ROADH*0.40*fsc),bw=Math.max(2,Math.round(hwF*1.03));
+      var barY=Math.round(yG-bh*1.75),barH=Math.max(2,Math.round(bh*0.22)),pw2=Math.max(1,Math.round(bw*0.07));
+      if(barY<RH+8){
+        sg.fillStyle='#15151c';
+        sg.fillRect(Math.round(xF-bw),barY,pw2,Math.max(1,Math.round(yG-barY)));
+        sg.fillRect(Math.round(xF+bw-pw2),barY,pw2,Math.max(1,Math.round(yG-barY)));
+        var sq2=Math.max(1,Math.round(barH*0.9)),k3;
+        for(k3=0;k3<Math.floor((bw*2)/sq2);k3++){
+          sg.fillStyle=(k3&1)?'#f4f4ee':'#101014';
+          sg.fillRect(Math.round(xF-bw+k3*sq2),barY,sq2,barH);
+        }
+      }
+    }
+  }
+
   /* tyre smoke behind the car */
   nextPuff-=dt;
   if(Math.abs(drift)>0.20&&nextPuff<=0&&smoke.length<50){
@@ -540,11 +638,28 @@ function render(ms){
     sg.fillRect(Math.round(p.x-p.r),Math.round(p.y-p.r),Math.round(p.r*2),Math.round(p.r*2));
   }
 
-  drawCar(RW*0.5+(carX-camX)*FOC/CARD,Math.round(RH*0.80)+Math.sin(ms/90)*0.4,drift*0.22);
+  drawCar(RW*0.5+(carX-camX)*FOC/CARD,Math.round(RH*0.80)+Math.sin(ms/90)*0.4*Math.min(1,SPD/260),drift*0.13+steerV*0.05);
 
+  drawHud();
   requestAnimationFrame(render);
 }
 if(sg)requestAnimationFrame(render);
+
+/* ── DRIVING CONTROLS ── */
+var keyMap={ArrowLeft:'l',KeyA:'l',ArrowRight:'r',KeyD:'r',ArrowUp:'u',KeyW:'u',ArrowDown:'d',KeyS:'d'};
+document.addEventListener('keydown',function(e){
+  var k=keyMap[e.code];
+  if(k){keys[k]=1;e.preventDefault();return;}
+  if(e.code==='Enter'||e.code==='Space'){
+    if(e.target&&e.target.tagName==='BUTTON')return;
+    if(mode!=='run'){startRun();e.preventDefault();}
+  }
+});
+document.addEventListener('keyup',function(e){var k=keyMap[e.code];if(k){keys[k]=0;e.preventDefault();}});
+window.addEventListener('blur',function(){keys.l=keys.r=keys.u=keys.d=0;steerV=0;});
+if(SCV&&window.matchMedia&&window.matchMedia('(pointer:fine)').matches){
+  SCV.addEventListener('pointerdown',function(){if(mode!=='run')startRun();});
+}
 
 /* ── STATE ── */
 var provider,signer,contract,rid=0,lastWinner=null,selectedTier=1;
