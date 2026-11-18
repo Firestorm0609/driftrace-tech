@@ -27,6 +27,8 @@ button{cursor:pointer}
 .sound-btn{margin-left:auto;padding:3px 6px;font-size:6px;cursor:pointer;border:1px solid var(--line)}
 .sound-btn:hover{border-color:var(--neon)}
 .sound-btn.muted-sound{opacity:.4}
+.fs-btn{min-width:42px;letter-spacing:.08em}
+.fs-btn[aria-pressed="true"]{border-color:var(--neon);background:#ccff0014}
 .world{width:100vw;height:calc(100dvh - var(--top));display:grid;grid-template-columns:minmax(0,1fr);gap:4px;padding:4px}
 /* the canvas is pinned to the panel: if it is left in flow its width/height
    attributes feed an intrinsic ratio back into layout, the element ends up
@@ -269,6 +271,7 @@ body.tilt-live[data-pad-layout="left"] .touch,body[data-control-type="tap"][data
 <header class="top">
   <div class="brand">DRIFT</div>
   <div class="muted">AUTONOMOUS RACE OPERATOR // ROBINHOOD CHAIN</div>
+  <button class="sound-btn fs-btn" id="fsBtn" type="button" title="Toggle fullscreen" aria-label="Enter fullscreen" aria-pressed="false">FULL</button>
   <button class="sound-btn" id="soundBtn" title="Toggle sound">&#128266;</button>
 </header>
 <main class="world">
@@ -630,7 +633,7 @@ function engineUpdate(){
    video teaches it: the car is a pile of flat slices, and the road is
    projected one scanline at a time. */
 var SCV=$('scene'),sg=SCV?SCV.getContext('2d'):null;
-var RW=336,RH=287,PXPX=3,CARW=46;
+var RW=336,RH=287,PXPX=2,CARW=46;
 var CAMH=520,FOC=260,ROADH=132,SPD=250,CARD=480,HZ=-52;
 var XS=new Float32Array(1400),HS=new Float32Array(1400);
 
@@ -639,10 +642,11 @@ if(SCV){SCV.width=RW;SCV.height=RH;SCV.style.imageRendering='pixelated';if(sg)sg
 function sizeScene(){
   if(!SCV)return;
   var w=SCV.clientWidth||1008,h=SCV.clientHeight||860;
-  /* the ground pass is per-pixel; large desktop windows get chunkier pixels
-     instead of dropping frames, phones keep the finer 3px grain */
+  /* the ground pass is per-pixel, so back off on larger windows. Phones
+     get two canvas pixels per CSS pixel; desktop steps are still finer
+     than the old 4-5px grain while keeping the frame rate up. */
   var area=w*h;
-  PXPX=area>1500000?5:(area>600000?4:3);
+  PXPX=area>3600000?4:(area>1600000?3:2);
   RW=Math.max(160,Math.round(w/PXPX));
   RH=Math.max(100,Math.round(h/PXPX));
   SCV.width=RW;SCV.height=RH;
@@ -651,8 +655,8 @@ function sizeScene(){
   /* The road is measured in car widths, not world units: two cars have to
      fit side by side whether the window is 1280 or 1920 wide. The car row
      sits at 0.80RH with the horizon at 0.17RH, so the half-width that reads
-     as 1.80 cars up there is CARW*1.80*CAMH/(0.97*RH). */
-  ROADH=Math.round(CARW*1.80*CAMH/(0.97*RH));
+     as 2.16 cars up there is CARW*2.16*CAMH/(0.97*RH). */
+  ROADH=Math.round(CARW*2.16*CAMH/(0.97*RH));
   /* Camera distance follows screen height so the car always sits on the
      same row, from a short landscape strip to a tall desktop window. */
   CARD=Math.round(FOC*520/(0.97*Math.max(100,RH)));
@@ -842,9 +846,58 @@ function lockLandscape(){
     }
   }catch(e){}
 }
+/* Fullscreen is best-effort: iOS Safari and some embedded browsers do not
+   expose the API, but the button and automatic request stay harmless. */
+function fullscreenElement(){
+  return document.fullscreenElement||document.webkitFullscreenElement||document.msFullscreenElement||null;
+}
+function enterFullscreen(){
+  if(fullscreenElement())return;
+  var el=document.documentElement;
+  try{
+    var req=el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen;
+    if(!req)return;
+    var p;
+    try{p=req.call(el,{navigationUI:'hide'})}catch(e){p=req.call(el)}
+    if(p&&p.catch)p.catch(function(){});
+  }catch(e){}
+}
+function exitFullscreen(){
+  try{
+    var fn=document.exitFullscreen||document.webkitExitFullscreen||document.msExitFullscreen;
+    if(!fn)return;
+    var p=fn.call(document);
+    if(p&&p.catch)p.catch(function(){});
+  }catch(e){}
+}
+function syncFullscreenUi(){
+  var btn=$('fsBtn');if(!btn)return;
+  var on=!!fullscreenElement();
+  btn.textContent=on?'EXIT':'FULL';
+  btn.title=on?'Exit fullscreen':'Enter fullscreen';
+  btn.setAttribute('aria-label',btn.title);
+  btn.setAttribute('aria-pressed',on?'true':'false');
+  setTimeout(sizeScene,60);
+}
+function toggleFullscreen(){
+  if(fullscreenElement())exitFullscreen();else enterFullscreen();
+}
+(function initFullscreenUi(){
+  var btn=$('fsBtn'),el=document.documentElement;
+  if(!btn)return;
+  if(!(el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen)){
+    btn.hidden=true;
+  }else{
+    btn.onclick=function(e){if(e&&e.stopPropagation)e.stopPropagation();toggleFullscreen();};
+  }
+  document.addEventListener('fullscreenchange',syncFullscreenUi);
+  document.addEventListener('webkitfullscreenchange',syncFullscreenUi);
+  syncFullscreenUi();
+})();
 function startRun(opts){
   opts=opts||{};
   if(mode==='run'||mode==='countdown')return;
+  enterFullscreen();
   lockLandscape();
   if(raceTransport.kind==='socket'&&!opts.network)return;
   hideResults();
@@ -1950,7 +2003,7 @@ function stepRace(dt,inputs){
   /* copy the input so the auto-throttle never sticks in the shared key map */
   var cmd={l:raw.l?1:0,r:raw.r?1:0,u:raw.u?1:0,d:raw.d?1:0};
   /* auto gas keeps the throttle pinned unless the brake is held, so a
-     thumb is free for steering; keyboard and desktop stay manual */
+     thumb is free for steering; the touch pad stays the only input */
   if(IS_TOUCH&&controlSettings.autoGas&&mode==='run'&&!cmd.d)cmd.u=1;
   var dmgRatio=Math.min(1,pDamage.length/14);
   if(dmgFlash>0)dmgFlash=Math.max(0,dmgFlash-dt);
@@ -2471,7 +2524,7 @@ function enterPvp(){
   raceTransport.begin();
   setScreen(queueScreen);
 }
-$('startBtn').onclick=function(){SFX.click();setScreen(modeScreen)};
+$('startBtn').onclick=function(){SFX.click();enterFullscreen();setScreen(modeScreen)};
 $('modeBack').onclick=function(){SFX.click();setScreen(startScreen)};
 $('modeControls').onclick=function(){SFX.click();setScreen(controlsScreen)};
 $('controlsBack').onclick=function(){SFX.click();setScreen(modeScreen)};
