@@ -45,9 +45,6 @@ function roadX(s) {
   return Math.sin(s * 0.00062) * 760 + Math.sin(s * 0.00151 + 1.7) * 210 +
     Math.sin(s * 0.0031 + 4.1) * 64;
 }
-function carTilt(car) {
-  return car.drift * 0.13 + car.steer * 0.05 + car.driftV * 0.06;
-}
 function gearAcc(k) {
   for (let i = 0; i < GEARS.length; i++) if (k <= GEARS[i]) return GEARACC[i];
   return GEARACC[GEARACC.length - 1];
@@ -84,10 +81,15 @@ function boxContact(ax, az, ahw, ahl, ath, bx, bz, bhw, bhl, bth) {
   };
 }
 
+function wrapAngle(a) {
+  while (a > Math.PI) a -= Math.PI * 2;
+  while (a < -Math.PI) a += Math.PI * 2;
+  return a;
+}
 function makeCar(id, slot, drift) {
   return {
     id, slot, z: START_Z, x: roadX(START_Z) + drift * ROADH,
-    spd: 0, drift, driftV: 0, steer: 0, brake: false,
+    spd: 0, heading: 0, vx: 0, vz: 0, drift, driftV: 0, steer: 0, brake: false,
     done: false, finishT: 0, damage: 0, bumpCd: 0,
     input: { l: 0, r: 0, u: 0, d: 0 }
   };
@@ -95,7 +97,8 @@ function makeCar(id, slot, drift) {
 function resetCar(car, drift) {
   car.z = START_Z;
   car.x = roadX(car.z) + drift * ROADH;
-  car.spd = 0; car.drift = drift; car.driftV = 0; car.steer = 0;
+  car.spd = 0; car.heading = 0; car.vx = 0; car.vz = 0;
+  car.drift = drift; car.driftV = 0; car.steer = 0;
   car.brake = false; car.done = false; car.finishT = 0;
   car.damage = 0; car.bumpCd = 0;
   car.input = { l: 0, r: 0, u: 0, d: 0 };
@@ -114,38 +117,53 @@ function stepCar(car, dt, raceT) {
   if (car.done) return;
   const input = car.input;
   const dmgRatio = Math.min(1, car.damage / 14);
-  const sCar = car.z;
-  const bendN = clamp((roadX(sCar + 170) - roadX(sCar - 170)) / 620, -1, 1);
-  const offRoad = Math.abs(car.drift) > ONG;
   const steerIn = (input.l ? -1 : 0) + (input.r ? 1 : 0);
-  car.steer += (steerIn - car.steer) * (1 - Math.exp(-dt * 14));
-  const dmgSteer = (offRoad ? 0.45 : 1) * (1 - 0.26 * dmgRatio);
-  car.drift += (-bendN * 1.40 * (car.spd / MAXSPD) * (1 + 0.08 * dmgRatio) +
-    car.steer * 1.15 * dmgSteer) * dt;
-  car.drift += car.driftV * dt;
-  car.driftV *= Math.exp(-dt * (4.8 - 1.2 * dmgRatio));
-  car.drift = clamp(car.drift, -1.05, 1.05);
-
-  if (input.u) {
-    const acc = gearAcc(Math.abs(car.spd) / MAXSPD) * (1 - 0.18 * dmgRatio);
-    car.spd = Math.min(MAXSPD * (1 - 0.075 * dmgRatio), car.spd + acc * dt);
+  car.steer += (steerIn - car.steer) * (1 - Math.exp(-dt * 12));
+  const lane = car.x - roadX(car.z);
+  const offRoad = Math.abs(lane) > ROADH * ONG;
+  let fx = Math.sin(car.heading), fz = Math.cos(car.heading);
+  let rx = Math.cos(car.heading), rz = -Math.sin(car.heading);
+  let fwd = car.vx * fx + car.vz * fz;
+  const speedMag = Math.sqrt(car.vx * car.vx + car.vz * car.vz);
+  const handbrake = !!input.d && speedMag > 120;
+  let yaw = car.steer * 1.8 * Math.min(1, speedMag / 230);
+  if (offRoad) yaw *= 0.72;
+  if (handbrake) yaw *= 1.45;
+  if (fwd < -1 && !input.u) yaw = -yaw;
+  car.heading = wrapAngle(car.heading + yaw * dt);
+  fx = Math.sin(car.heading); fz = Math.cos(car.heading);
+  rx = Math.cos(car.heading); rz = -Math.sin(car.heading);
+  fwd = car.vx * fx + car.vz * fz;
+  let lat = car.vx * rx + car.vz * rz;
+  const capF = MAXSPD * (1 - 0.075 * dmgRatio) * (offRoad ? 0.45 : 1);
+  const capR = REVSPD * (offRoad ? 0.45 : 1);
+  const acc = gearAcc(Math.abs(fwd) / MAXSPD) * (1 - 0.18 * dmgRatio);
+  if (input.u && input.d && speedMag > 120) {
+    fwd = Math.min(capF, fwd + acc * 0.50 * dt);
+  } else if (input.u) {
+    if (fwd < 0) fwd = Math.min(0, fwd + 1500 * dt);
+    else fwd = Math.min(capF, fwd + acc * dt);
   } else if (input.d) {
-    if (car.spd > 0) car.spd = Math.max(0, car.spd - 1400 * dt);
-    else car.spd = Math.max(-REVSPD, car.spd - 300 * dt);
+    if (fwd > 0) fwd = Math.max(0, fwd - 1400 * dt);
+    else fwd = Math.max(-capR, fwd - 300 * dt);
   } else {
-    if (car.spd > 0) car.spd = Math.max(0, car.spd - 100 * dt);
-    else car.spd = Math.min(0, car.spd + 220 * dt);
+    if (fwd > 0) fwd = Math.max(0, fwd - 100 * dt);
+    else fwd = Math.min(0, fwd + 220 * dt);
   }
-  car.brake = !!input.d && car.spd >= -0.5;
-
-  const capF = offRoad ? Math.min(MAXSPD * 0.45, MAXSPD * (1 - 0.075 * dmgRatio)) : MAXSPD * (1 - 0.075 * dmgRatio);
-  const capR = offRoad ? REVSPD * 0.45 : REVSPD;
-  if (car.spd > capF) car.spd = Math.max(capF, car.spd - 620 * dt);
-  if (car.spd < -capR) car.spd = Math.min(-capR, car.spd + 620 * dt);
-
-  car.z += car.spd * dt;
-  if (car.z < 0) { car.z = 0; car.spd = Math.max(0, car.spd); }
-  car.x = roadX(car.z) + car.drift * ROADH;
+  if (fwd > capF) fwd = Math.max(capF, fwd - 620 * dt);
+  if (fwd < -capR) fwd = Math.min(-capR, fwd + 620 * dt);
+  let grip = offRoad ? 2.2 : 7.5;
+  if (handbrake || (input.u && input.d)) grip = 1.15;
+  lat *= Math.exp(-dt * grip);
+  car.vx = fx * fwd + rx * lat;
+  car.vz = fz * fwd + rz * lat;
+  car.x += car.vx * dt;
+  car.z += car.vz * dt;
+  if (car.z < 0) { car.z = 0; if (car.vz < 0) car.vz = 0; }
+  car.spd = fwd;
+  car.drift = (car.x - roadX(car.z)) / ROADH;
+  car.driftV = lat / ROADH;
+  car.brake = !!input.d && fwd >= -0.5;
   if (car.z >= FINISH_Z && !car.done) {
     car.done = true;
     car.finishT = raceT;
@@ -155,37 +173,31 @@ function stepCar(car, dt, raceT) {
 function stepContact(a, b, dt) {
   if (a.done || b.done) return;
   const hit = boxContact(
-    a.x, a.z, CAR_HALF_W, CAR_HALF_L, -carTilt(a),
-    b.x, b.z, CAR_HALF_W, CAR_HALF_L, -carTilt(b)
+    a.x, a.z, CAR_HALF_W, CAR_HALF_L, -a.heading,
+    b.x, b.z, CAR_HALF_W, CAR_HALF_L, -b.heading
   );
   if (!hit.hit) return;
 
   const nx = hit.nx, nz = hit.nz;
   let corr = Math.max(0, hit.pen - 0.02) * 0.85;
-  a.drift = clamp(a.drift + nx * corr / ROADH, -1.05, 1.05);
-  b.drift = clamp(b.drift - nx * corr / ROADH, -1.05, 1.05);
+  a.x += nx * corr; b.x -= nx * corr;
   a.z = Math.max(0, a.z + nz * corr);
   b.z = Math.max(0, b.z - nz * corr);
-  a.x = roadX(a.z) + a.drift * ROADH;
-  b.x = roadX(b.z) + b.drift * ROADH;
 
   for (let pass = 0; pass < 4; pass++) {
     const post = boxContact(
-      a.x, a.z, CAR_HALF_W, CAR_HALF_L, -carTilt(a),
-      b.x, b.z, CAR_HALF_W, CAR_HALF_L, -carTilt(b)
+      a.x, a.z, CAR_HALF_W, CAR_HALF_L, -a.heading,
+      b.x, b.z, CAR_HALF_W, CAR_HALF_L, -b.heading
     );
     if (!post.hit || post.pen <= 0.03) break;
     corr = Math.max(0, post.pen - 0.01) * 0.75;
-    a.drift = clamp(a.drift + post.nx * corr / ROADH, -1.05, 1.05);
-    b.drift = clamp(b.drift - post.nx * corr / ROADH, -1.05, 1.05);
+    a.x += post.nx * corr; b.x -= post.nx * corr;
     a.z = Math.max(0, a.z + post.nz * corr);
     b.z = Math.max(0, b.z - post.nz * corr);
-    a.x = roadX(a.z) + a.drift * ROADH;
-    b.x = roadX(b.z) + b.drift * ROADH;
   }
 
-  let avx = a.driftV * ROADH, avz = a.spd;
-  let bvx = b.driftV * ROADH, bvz = b.spd;
+  let avx = a.vx, avz = a.vz;
+  let bvx = b.vx, bvz = b.vz;
   const rvx = avx - bvx, rvz = avz - bvz;
   const vn = rvx * nx + rvz * nz;
   const impact = Math.max(0, -vn);
@@ -198,14 +210,17 @@ function stepContact(a, b, dt) {
     const jt = clamp(-vt * 0.5 * 0.55, -jn * 0.35, jn * 0.35);
     avx += tx * jt; avz += tz * jt;
     bvx -= tx * jt; bvz -= tz * jt;
+    const spin = clamp((avx * nz - avz * nx) / 1100, -0.16, 0.16);
+    a.heading = wrapAngle(a.heading - spin);
+    b.heading = wrapAngle(b.heading + spin);
   }
-  a.spd = clamp(avz, -REVSPD, MAXSPD);
-  b.spd = clamp(bvz, -REVSPD, MAXSPD);
-  a.driftV = clamp(avx / ROADH, -1.8, 1.8);
-  b.driftV = clamp(bvx / ROADH, -1.8, 1.8);
+  a.vx = avx; a.vz = avz; b.vx = bvx; b.vz = bvz;
+  a.spd = avx * Math.sin(a.heading) + avz * Math.cos(a.heading);
+  b.spd = bvx * Math.sin(b.heading) + bvz * Math.cos(b.heading);
+  a.drift = (a.x - roadX(a.z)) / ROADH; b.drift = (b.x - roadX(b.z)) / ROADH;
+  a.driftV = clamp((avx * Math.cos(a.heading) - avz * Math.sin(a.heading)) / ROADH, -1.8, 1.8);
+  b.driftV = clamp((bvx * Math.cos(b.heading) - bvz * Math.sin(b.heading)) / ROADH, -1.8, 1.8);
   a.z = Math.max(0, a.z); b.z = Math.max(0, b.z);
-  a.x = roadX(a.z) + a.drift * ROADH;
-  b.x = roadX(b.z) + b.drift * ROADH;
 
   if (impact > 5) {
     if (a.bumpCd <= 0) { a.damage = Math.min(14, a.damage + (impact > 450 ? 2 : 1)); a.bumpCd = 0.35; }
@@ -219,6 +234,9 @@ function carSnapshot(car) {
     z: Math.round(car.z * 100) / 100,
     x: Math.round(car.x * 100) / 100,
     spd: Math.round(car.spd * 100) / 100,
+    heading: Math.round(car.heading * 10000) / 10000,
+    vx: Math.round(car.vx * 100) / 100,
+    vz: Math.round(car.vz * 100) / 100,
     drift: Math.round(car.drift * 10000) / 10000,
     driftV: Math.round(car.driftV * 10000) / 10000,
     steer: Math.round(car.steer * 10000) / 10000,
