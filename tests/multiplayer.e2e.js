@@ -77,8 +77,11 @@ function fail(message) {
       if (!(s.cars.some(c => Math.abs(c.z - 480) > 2))) fail('server cars did not move');
     }
 
-    const content = await pages[0].evaluate(() => document.getElementById('chat').textContent);
-    if (!/MP\s+/.test(content)) fail('multiplayer status was not rendered');
+    const content = await pages[0].evaluate(() => ({
+      room: window.__mpStats && window.__mpStats.room,
+      menus: !!document.querySelector('.menu.on')
+    }));
+    if (content.room !== ROOM || content.menus) fail('multiplayer status was not rendered');
 
     let finish = null;
     if (CHECK_FINISH) {
@@ -93,7 +96,7 @@ function fail(message) {
       finish = await Promise.all(pages.map(p => p.evaluate(() => ({
         title: document.getElementById('resultTitle').textContent,
         kicker: document.getElementById('resultKicker').textContent,
-        status: document.getElementById('chat').textContent
+        menus: !!document.querySelector('.menu.on')
       }))));
       if (!finish.every(f => /YOU WIN|RIVAL WINS|TIME UP/.test(f.title))) {
         fail('authoritative result overlay did not render a winner');

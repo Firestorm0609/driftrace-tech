@@ -3,17 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>DRIFT — AI Race Hub</title>
+<title>DRIFT — 1V1 Racing</title>
 <meta name="theme-color" content="#000000">
-<meta name="description" content="DRIFT — Autonomous AI Racing on Robinhood Chain. Provably fair AI agent runs races, players bet on 10 drivers.">
-<meta property="og:title" content="DRIFT — AI Race Hub">
-<meta property="og:description" content="Autonomous AI racing on Robinhood Chain. Provably fair. Fully on-chain.">
+<meta name="description" content="DRIFT — 1v1 racing on Robinhood Chain. Race the house AI or a real opponent on your phone.">
+<meta property="og:title" content="DRIFT — 1V1 Racing">
+<meta property="og:description" content="One road. One rival. 60 seconds to the flag.">
 <meta property="og:url" content="https://driftrace.tech">
 <meta property="og:type" content="website">
 <meta property="og:image" content="https://driftrace.tech/og.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="DRIFT — AI Race Hub">
-<meta name="twitter:description" content="Autonomous AI racing on Robinhood Chain.">
+<meta name="twitter:title" content="DRIFT — 1V1 Racing">
+<meta name="twitter:description" content="1v1 racing on Robinhood Chain.">
 <link rel="canonical" href="https://driftrace.tech">
 <style>
 :root{--neon:#ccff00;--line:#789600;--dim:#425300;--bg:#000000;--top:28px}
@@ -24,63 +24,10 @@ button{cursor:pointer}
 .top{height:28px;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 6px;gap:6px}
 .brand{font-weight:900;letter-spacing:.16em;font-size:10px}
 .muted{opacity:.55;font-size:6px}
-.wallet{margin-left:auto;padding:3px 6px;font-size:6px}
-.usd{font-size:5px;opacity:.5;margin-left:4px}
-.sound-btn{padding:3px 6px;font-size:6px;cursor:pointer;border:1px solid var(--line)}
+.sound-btn{margin-left:auto;padding:3px 6px;font-size:6px;cursor:pointer;border:1px solid var(--line)}
 .sound-btn:hover{border-color:var(--neon)}
 .sound-btn.muted-sound{opacity:.4}
-.world{width:100vw;height:calc(100dvh - var(--top));display:grid;grid-template-columns:minmax(118px,20vw) minmax(0,1fr);gap:4px;padding:4px}
-.hub{min-width:0;display:flex;flex-direction:column;gap:5px}
-.hubbox{width:100%;border:1px solid var(--line);padding:4px}
-.hubtitle{border:1px solid var(--line);padding:4px;text-align:center;font-size:12px;font-weight:900;letter-spacing:.08em}
-.room{border:1px solid var(--line);margin-top:4px;padding:4px;position:relative}
-.chat-bubble{position:relative;border:1px dashed var(--dim);padding:3px 4px;font-size:5.5px;min-height:16px;overflow:hidden;margin-bottom:4px;line-height:1.3}
-.chat-bubble:after{content:'';position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid var(--dim)}
-.chat-bubble.event{border-color:var(--neon);transition:border-color .3s}
-.chat-bubble.event:after{border-top-color:var(--neon)}
-.desk{display:flex;align-items:flex-end;justify-content:center;gap:4px;padding-top:6px}
-.screen{width:31px;height:25px;border:1px solid var(--line);display:grid;place-items:center;text-align:center;font-size:4.5px;opacity:.7}
-.screen.flash{border-color:var(--neon);opacity:1;transition:border-color .3s}
-.agent-svg-wrap{position:relative;display:flex;flex-direction:column;align-items:center}
-.agent-svg{width:32px;height:52px}
-.agent-label{text-align:center;font-size:4px;letter-spacing:.12em;margin-top:1px;opacity:.65}
-@keyframes blink{0%,90%,100%{ry:1.5}95%{ry:.3}}
-@keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
-@keyframes ant-pulse{0%,100%{r:1.5;opacity:.6}50%{r:2.5;opacity:1}}
-.agent-eye{animation:blink 4s infinite}
-.led-pulse{animation:pulse 2s infinite}
-.ant-dot{animation:ant-pulse 2s infinite}
-.bet{margin-top:4px;border-top:1px solid var(--line);padding-top:4px}
-.stats{font-size:5px;display:grid;grid-template-columns:1fr 1fr;gap:2px;margin:3px 0}
-.row{display:flex;gap:2px;margin-top:3px}
-.row>*{min-width:0;flex:1;padding:3px 2px;font-size:5px}
-.status{margin-top:4px;font-size:4.5px;line-height:1.35;opacity:.72;overflow-wrap:anywhere}
-.test-race{margin-top:4px;border-top:1px solid var(--line);padding-top:4px;text-align:center}
-.test-btn{width:100%;padding:5px 4px;font-size:6px;font-weight:700;letter-spacing:.08em;border:1px dashed var(--dim);background:none;color:var(--neon);cursor:pointer;transition:all .2s}
-.test-btn:hover{border-color:var(--neon);background:#ccff0010}
-.test-btn.running{border-color:#ff4081;color:#ff4081;pointer-events:none;animation:test-pulse 1s infinite}
-@keyframes test-pulse{0%,100%{opacity:1}50%{opacity:.5}}
-.rooms{display:grid;grid-template-columns:1fr 1fr;gap:4px;align-content:start}
-.race-room{position:relative;height:55px;border:1px solid var(--line);background:var(--bg);padding:5px;text-align:left;overflow:hidden}
-.race-room:before{content:'';position:absolute;inset:4px;border:1px solid var(--dim);pointer-events:none}
-.race-room:hover,.race-room.active{background:#ccff000d;border-color:var(--neon)}
-.race-room.active:after{content:'LIVE';position:absolute;right:7px;top:6px;font-size:4px}
-.tier{position:relative;z-index:1;font-size:12px;font-weight:900}
-.roommeta{position:absolute;z-index:1;left:6px;bottom:6px;font-size:4px;opacity:.65}
-.history{border:1px solid var(--line);margin-top:auto;padding:4px;max-height:90px;overflow-y:auto}
-.hist-title{font-size:5px;font-weight:900;letter-spacing:.08em;margin-bottom:3px;opacity:.7}
-.hist-row{font-size:4.5px;padding:2px 0;border-bottom:1px solid var(--dim);display:flex;justify-content:space-between;gap:2px}
-.hist-row:last-child{border-bottom:0}
-.hist-winner{font-weight:700}
-.hist-pool{opacity:.6}
-.leaderboard{border:1px solid var(--line);padding:4px;max-height:120px;overflow-y:auto}
-.lb-title{font-size:5px;font-weight:900;letter-spacing:.08em;margin-bottom:3px;opacity:.7}
-.lb-row{font-size:4.5px;padding:2px 0;border-bottom:1px solid var(--dim);display:flex;align-items:center;gap:3px}
-.lb-row:last-child{border-bottom:0}
-.lb-rank{width:12px;text-align:right;opacity:.5;font-size:4px}
-.lb-color{width:6px;height:6px;border-radius:1px;flex-shrink:0}
-.lb-name{font-weight:700;flex:1}
-.lb-wins{opacity:.7;text-align:right}
+.world{width:100vw;height:calc(100dvh - var(--top));display:grid;grid-template-columns:minmax(0,1fr);gap:4px;padding:4px}
 /* the canvas is pinned to the panel: if it is left in flow its width/height
    attributes feed an intrinsic ratio back into layout, the element ends up
    taller than the panel, and the clipped strip at the bottom is the car */
@@ -107,11 +54,6 @@ button{cursor:pointer}
 .finish{position:absolute;left:0;right:0;bottom:16px;height:6px;border-top:1px solid var(--neon);border-bottom:1px solid var(--neon);background:repeating-linear-gradient(90deg,var(--neon) 0 3px,transparent 3px 6px);opacity:.45}
 .fair{position:absolute;bottom:4px;left:4px;font-size:4px;opacity:.6}
 .test-badge{position:absolute;top:4px;right:4px;font-size:4px;color:#ff4081;border:1px dashed #ff4081;padding:1px 3px;opacity:.7}
-.winner{position:fixed;inset:0;background:#000000f2;z-index:50;display:none;place-items:center;text-align:center}
-.winner.on{display:grid}
-.winner h1{font-size:28px;margin:8px 0}
-.winner-car{margin:10px auto;width:112px;height:217px}
-.winner-car svg,.winner-car canvas{width:100%;height:100%;image-rendering:pixelated;filter:drop-shadow(0 0 12px var(--winner-glow,#ccff00))}
 /* -- MANUAL RACE RESULTS -- */
 .race-result{position:fixed;inset:0;z-index:55;display:none;place-items:center;padding:16px;background:rgba(0,0,0,.84);backdrop-filter:blur(3px)}
 .race-result.on{display:grid}
@@ -137,11 +79,10 @@ button{cursor:pointer}
 .result-hint{font-size:5px;letter-spacing:.08em;opacity:.4}
 @media(max-width:600px){.result-card{padding:14px 13px 12px}.result-card:before{display:none}.result-sub{font-size:6px}.result-stat b{font-size:13px}.result-damage-bar{width:104px}}
 /* a thumb cannot press ENTER, so the keyboard hint is noise on touch */
-@media (pointer:coarse){.result-hint{display:none}.winner button{padding:12px 16px;min-height:44px;font-size:12px;margin-top:8px}.winner .muted{font-size:9px}}
+@media (pointer:coarse){.result-hint{display:none}}
 @media(max-height:540px){.result-card{padding:12px 14px 10px}.result-title{font-size:32px}.result-sub{margin:6px 0 9px;padding-bottom:7px}.result-stat{padding:6px 8px;min-height:41px}.result-actions{margin-top:9px}}
 /* -- THEATRE: full-window race view -- */
 body.theatre .world{grid-template-columns:minmax(0,1fr);gap:0;padding:0}
-body.theatre .hub{display:none}
 body.theatre .trackside{grid-template-rows:46px 1fr;border:0}
 body.theatre .lanehead{font-size:9px;padding:7px 0;letter-spacing:.06em}
 body.theatre .lanehead b{font-size:15px;margin-bottom:2px}
@@ -157,7 +98,7 @@ body.theatre .car svg{display:none}
 button.on{border-color:var(--neon);background:#ccff0014}
 .theatre-hud{position:fixed;top:0;left:50%;transform:translateX(-50%);height:28px;z-index:20;display:none;align-items:center;gap:10px;font-size:8px;padding:0 10px;border-left:1px solid var(--dim);border-right:1px solid var(--dim);background:#000c;letter-spacing:.06em;white-space:nowrap}
 body.theatre .theatre-hud{display:flex}
-body.theatre .top .muted,body.theatre .top .usd{display:none}
+body.theatre .top .muted{display:none}
 .theatre-hud b{font-weight:700}
 .theatre-hud button{padding:2px 6px;font-size:7px}
 html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%}
@@ -171,58 +112,21 @@ html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%}
 .tc-gas{width:80px;height:80px;font-size:12px;letter-spacing:.1em;border-color:var(--neon)}
 .tc-brake{width:52px;height:52px;font-size:10px;opacity:.9}
 @media (pointer:coarse),(max-width:820px){.touch{display:flex}}
-.hub-btn{display:none;position:fixed;right:8px;top:calc(var(--top) + 8px);z-index:45;padding:8px 11px;border:1px solid var(--line);background:#000000cc;color:var(--neon);font-size:10px;font-weight:900;letter-spacing:.1em;touch-action:manipulation}
-/* -- PHONES PORTRAIT: track on top, hub scrolls beneath -- */
+/* -- PHONES PORTRAIT: full-bleed track -- */
 /* Phones, plus touch tablets that would otherwise land in the tiny sidebar
    layout between 761px and the pad's own 820px breakpoint. */
 @media (max-width:760px),(max-width:820px) and (pointer:coarse){
   :root{--top:48px}
   .top{height:48px;padding:0 10px;gap:8px}
   .top .muted{display:none}
-  .top .usd{display:none}
   .brand{font-size:13px;letter-spacing:.18em}
-  .wallet{padding:0 12px;min-height:44px;font-size:10px}
   .sound-btn{padding:0 10px;min-width:44px;min-height:44px;font-size:16px}
-  .world{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;gap:0;padding:0}
-  /* the hub comes first in the markup, so both rows are placed by hand */
-  .trackside{grid-row:1;grid-column:1;grid-template-rows:1fr;border:0;border-bottom:1px solid var(--line);min-height:0}
-  .hub{grid-row:2;grid-column:1;max-height:40dvh;overflow-y:auto;overscroll-behavior:contain;gap:8px;padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px))}
-  /* History and leaderboard are scroll containers, so a flex column would
-     shrink them to their padding and hide them. Keep every panel at its
-     natural height and let the hub itself scroll instead. */
-  .hub>*{flex:0 0 auto}
-  .lb-rank{font-size:9px;width:14px}
-  .lb-color{width:8px;height:8px}
-  .hubbox{padding:8px}
-  .hubtitle{font-size:13px;padding:6px;letter-spacing:.1em}
-  .room{margin-top:0}
-  .chat-bubble{font-size:10px;min-height:0;line-height:1.4;padding:6px 8px;margin-bottom:0}
-  .chat-bubble:after{display:none}
-  .desk{display:none}
-  .stats{font-size:10px;gap:6px 10px;margin:0 0 8px}
-  .stats b{display:block;margin-top:2px}
-  .row{gap:6px;margin-top:6px}
-  .row>*{font-size:14px;padding:9px 8px;min-height:44px}
-  /* 16px keeps iOS from zooming the page when the bet field is focused */
-  .row #driver,.row #amount{font-size:16px;padding:0 8px}
-  .status{margin-top:8px;font-size:9px;line-height:1.6}
-  .test-race{margin-top:8px;padding-top:8px}
-  .test-btn{font-size:11px;padding:11px}
-  .rooms{gap:8px;grid-template-columns:1fr 1fr;margin-top:8px}
-  .race-room{height:58px;padding:9px}
-  .race-room.active:after{font-size:7px;right:9px;top:9px}
-  .tier{font-size:16px}
-  .roommeta{font-size:8px;left:9px;bottom:9px}
-  .history{max-height:none;margin-top:0}
-  .leaderboard{max-height:none}
-  .hist-title,.lb-title{font-size:10px;margin-bottom:6px}
-  .hist-row,.lb-row{font-size:10px;padding:6px 0}
+  .world{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:0;padding:0}
+  .trackside{grid-template-rows:1fr;border:0;min-height:0}
   .lanehead{font-size:6px;padding:5px 0}
   .lanehead b{font-size:9px}
   .car svg{width:18px;height:30px}
   .startline{top:26px}
-  .winner h1{font-size:24px}
-  .winner-car{width:86px;height:167px}
   #theatreBtn{display:none}
   body.theatre .world{grid-template-columns:minmax(0,1fr)}
   .theatre-hud{display:none!important}
@@ -238,40 +142,22 @@ html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%}
   .result-again{font-size:12px;padding:12px 18px;min-height:44px}
   .result-hint{font-size:8px}
 }
-/* -- PHONES LANDSCAPE: full-bleed track, hub behind the HUB button -- */
+/* -- PHONES LANDSCAPE: full-bleed track -- */
 @media (max-height:560px) and (orientation:landscape){
   :root{--top:48px}
   .top{height:48px;padding:0 10px;gap:8px}
-  .top .muted,.top .usd{display:none}
+  .top .muted{display:none}
   .brand{font-size:12px}
-  .wallet{padding:0 10px;min-height:44px;font-size:9px}
   .sound-btn{padding:0 9px;min-width:44px;min-height:44px;font-size:15px}
   .world{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:0;padding:0}
   .trackside{grid-template-rows:1fr;border:0;min-height:0}
-  .hub{display:none;max-height:none;gap:8px;padding:10px calc(10px + env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) calc(10px + env(safe-area-inset-left,0px))}
-  /* the DRIVE button floats at the top right of the open panel, so the
-     panel's own content starts below it */
-  body.hubopen .hub{display:flex;position:fixed;left:0;right:0;top:var(--top);bottom:0;z-index:40;background:#000;overflow-y:auto;overscroll-behavior:contain;border-top:1px solid var(--line);padding-top:56px}
-  .hub-btn{display:block;min-width:44px;min-height:44px;top:calc(var(--top) + 4px)}
-  .hubtitle{font-size:12px}
-  .chat-bubble{font-size:10px;min-height:0;padding:6px 8px}
-  .chat-bubble:after{display:none}
-  .desk{display:none}
-  .stats{font-size:10px}
-  .row>*{font-size:12px;padding:8px;min-height:44px}
-  .row #driver,.row #amount{font-size:16px;padding:0 8px}
-  .status{font-size:9px}
-  .test-btn{font-size:10px;padding:9px}
-  .race-room{height:52px}
-  .tier{font-size:14px}
-  .roommeta{font-size:7px}
-  .hist-row,.lb-row,.hist-title,.lb-title{font-size:9px}
   .tc-btn{width:56px;height:56px;font-size:18px}
   .tc-gas{width:70px;height:70px;font-size:11px}
   .tc-brake{width:50px;height:50px;font-size:9px}
   .result-card{max-height:calc(100dvh - 16px);padding:12px 14px}
   .result-again{min-height:44px;font-size:11px;padding:10px 14px}
 }
+@keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
 /* -- TITLE / MODE / MATCHMAKING --
    Full-screen, thumb-sized controls: this is the first thing a phone sees. */
 .menu{position:fixed;inset:0;z-index:60;background:#000;display:none;overflow-y:auto;overscroll-behavior:contain}
@@ -302,87 +188,9 @@ html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%}
 <header class="top">
   <div class="brand">DRIFT</div>
   <div class="muted">AUTONOMOUS RACE OPERATOR // ROBINHOOD CHAIN</div>
-  <span class="usd" id="ethUsd"></span>
   <button class="sound-btn" id="soundBtn" title="Toggle sound">&#128266;</button>
-  <button class="wallet" id="walletBtn">CONNECT</button>
 </header>
 <main class="world">
-  <aside class="hub">
-    <section class="hubbox">
-      <div class="hubtitle">RACE HUB</div>
-      <div class="room">
-        <div class="chat-bubble" id="chat">booting race systems...</div>
-        <div class="desk">
-          <div class="screen" id="scrL">RACE<br>CONTROL</div>
-          <div class="agent-svg-wrap">
-            <svg class="agent-svg" viewBox="0 0 32 52" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <line x1="16" y1="8" x2="16" y2="2" stroke="#ccff00" stroke-width="1"/>
-              <circle class="ant-dot" cx="16" cy="2" r="1.5" fill="#ccff00"/>
-              <rect x="6" y="8" width="20" height="14" rx="7" stroke="#ccff00" stroke-width="1" fill="none"/>
-              <ellipse class="agent-eye" cx="12" cy="15" rx="2" ry="1.5" fill="#ccff00"/>
-              <ellipse class="agent-eye" cx="20" cy="15" rx="2" ry="1.5" fill="#ccff00"/>
-              <line x1="14" y1="22" x2="14" y2="25" stroke="#ccff00" stroke-width="1"/>
-              <line x1="18" y1="22" x2="18" y2="25" stroke="#ccff00" stroke-width="1"/>
-              <rect x="8" y="25" width="16" height="12" rx="3" stroke="#ccff00" stroke-width="1" fill="none"/>
-              <circle class="led-pulse" cx="13" cy="31" r="1" fill="#ccff00" opacity=".3"/>
-              <circle class="led-pulse" cx="16" cy="31" r="1" fill="#ccff00" style="animation-delay:.5s" opacity=".3"/>
-              <circle class="led-pulse" cx="19" cy="31" r="1" fill="#ccff00" style="animation-delay:1s" opacity=".3"/>
-              <line x1="8" y1="28" x2="3" y2="32" stroke="#ccff00" stroke-width="1"/>
-              <line x1="24" y1="28" x2="29" y2="32" stroke="#ccff00" stroke-width="1"/>
-              <circle cx="3" cy="32" r="1" fill="#ccff00"/>
-              <circle cx="29" cy="32" r="1" fill="#ccff00"/>
-              <line x1="13" y1="37" x2="12" y2="44" stroke="#ccff00" stroke-width="1"/>
-              <line x1="19" y1="37" x2="20" y2="44" stroke="#ccff00" stroke-width="1"/>
-              <rect x="9" y="44" width="6" height="3" rx="1.5" stroke="#ccff00" stroke-width="1" fill="none"/>
-              <rect x="17" y="44" width="6" height="3" rx="1.5" stroke="#ccff00" stroke-width="1" fill="none"/>
-              <line x1="10" y1="50" x2="10" y2="52" stroke="#ccff00" stroke-width=".5" opacity=".3"/>
-              <line x1="16" y1="50" x2="16" y2="52" stroke="#ccff00" stroke-width=".5" opacity=".3"/>
-              <line x1="22" y1="50" x2="22" y2="52" stroke="#ccff00" stroke-width=".5" opacity=".3"/>
-            </svg>
-            <div class="agent-label">DRIFT AI</div>
-          </div>
-          <div class="screen" id="scrR">CHAIN<br>SETTLE</div>
-        </div>
-      </div>
-      <div class="bet">
-        <div class="stats">
-          <span>RACE <b id="raceId">#&mdash;</b></span>
-          <span>STATUS <b id="raceStatus">SYNC</b></span>
-          <span>POOL <b id="pool">0 ETH</b></span>
-          <span>CLOCK <b id="timer">--:--</b></span>
-        </div>
-        <div class="row">
-          <select id="driver"></select>
-          <input id="amount" type="number" min="0.001" step="0.001" placeholder="ETH">
-        </div>
-        <div class="row">
-          <button id="betBtn" disabled>CONNECT</button>
-        </div>
-        <div class="status">
-          COMMIT <span id="commit">&mdash;</span><br>
-          SEED <span id="seed">HIDDEN</span><br>
-          WINNER <span id="win">&mdash;</span>
-        </div>
-      </div>
-    </section>
-    <section class="rooms" id="rooms">
-      <button class="race-room active" data-tier="1"><span class="tier">$1</span><span class="roommeta">ROOM 01 // OPEN</span></button>
-      <button class="race-room" data-tier="5"><span class="tier">$5</span><span class="roommeta">ROOM 02 // READY</span></button>
-      <button class="race-room" data-tier="10"><span class="tier">$10</span><span class="roommeta">ROOM 03 // READY</span></button>
-      <button class="race-room" data-tier="50"><span class="tier">$50</span><span class="roommeta">ROOM 04 // READY</span></button>
-      <button class="race-room" data-tier="100"><span class="tier">$100</span><span class="roommeta">ROOM 05 // READY</span></button>
-      <button class="race-room" data-tier="500"><span class="tier">$500</span><span class="roommeta">ROOM 06 // READY</span></button>
-      <button class="race-room" data-tier="1000"><span class="tier">$1K</span><span class="roommeta">ROOM 07 // READY</span></button>
-    </section>
-    <section class="history" id="history">
-      <div class="hist-title">RECENT RACES</div>
-      <div id="histList"><div class="hist-row" style="opacity:.4">no races yet</div></div>
-    </section>
-    <section class="leaderboard" id="leaderboard">
-      <div class="lb-title">LEADERBOARD</div>
-      <div id="lbList"><div class="lb-row" style="opacity:.4">no wins yet</div></div>
-    </section>
-  </aside>
   <section class="trackside">
     <canvas id="scene"></canvas>
     <div class="touch" id="touch">
@@ -397,18 +205,9 @@ html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%}
     </div>
   </section>
 </main>
-<button class="hub-btn" id="hubBtn" type="button">HUB</button>
 <div class="theatre-hud" id="theatreHud">
   <span><b id="thRace">#&mdash;</b></span><span id="thStatus">SYNC</span><span id="thPool">0 ETH</span><span id="thTimer">--:--</span>
   <button id="thExit">EXIT</button>
-</div>
-<div class="winner" id="winner">
-  <div>
-    <div class="muted">RACE SETTLED BY DRIFT AGENT</div>
-    <h1 id="winnerName">WINNER</h1>
-    <p id="winnerPool"></p>
-    <button onclick="document.getElementById('winner').classList.remove('on')">RETURN TO HUB</button>
-  </div>
 </div>
 <div class="race-result" id="raceResult" aria-hidden="true">
   <div class="result-card" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
@@ -465,16 +264,10 @@ html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%}
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
 <script>
 
 (function(){
 "use strict";
-
-/* ── CONFIG ── */
-var CONTRACT='0x796c16af215C6f4c34d39cea9279c0aC79DF609e';
-var CHAIN={chainId:'0xB626',chainName:'Robinhood Chain Testnet',nativeCurrency:{name:'ETH',symbol:'ETH',decimals:18},rpcUrls:['https://robinhood-testnet.g.alchemy.com/v2/AUGVJZWHgMFRdBn7xeexx'],blockExplorerUrls:['https://explorer.testnet.chain.robinhood.com']};
-var ABI=['function currentRaceId() external view returns (uint256)','function getRace(uint256) external view returns (uint256,uint256,uint256,uint256,bytes32,bytes32,bool,bool,bool,uint8,uint256,uint256)','function getBetCount(uint256) external view returns (uint256)','function getDriverBetCount(uint256,uint8) external view returns (uint256)','function timeUntilBettingEnds(uint256) external view returns (uint256)','function placeBet(uint256,uint8) external payable'];
 
 /* Multiplayer is opt-in with ?room=CODE. ?mp=1 uses the PUBLIC room.
    The override makes the local two-browser test independent of production TLS. */
@@ -491,34 +284,14 @@ var MP_SERVER=qparam('ws')||(location.protocol==='https:'?
   (/\.trycloudflare\.com$/.test(location.hostname)||/\.sslip\.io$/.test(location.hostname)||/^race\./.test(location.hostname)?
     'wss://'+location.host+'/ws':'wss://race.driftrace.tech/ws'):
   'ws://127.0.0.1:8788/ws');
-var D=['VIPER','PHANTOM','BLAZE','NEON','STORM','SHADOW','TITAN','RAPTOR','SURGE','FROST'];
-var DC=[
-  {fill:'#ff1744',stroke:'#ff5252'},
-  {fill:'#00a152',stroke:'#00c853'},
-  {fill:'#ffffff',stroke:'#e0e0e0'},
-  {fill:'#ff4081',stroke:'#ff80ab'},
-  {fill:'#2979ff',stroke:'#82b1ff'},
-  {fill:'#d500f9',stroke:'#ea80fc'},
-  {fill:'#00e5ff',stroke:'#84ffff'},
-  {fill:'#ffea00',stroke:'#ffff00'},
-  {fill:'#ff6d00',stroke:'#ff9e40'},
-  {fill:'#1de9b6',stroke:'#64ffda'}
-];
-
 /* ── HELPERS ── */
 function $(id){return document.getElementById(id)}
 function sleep(ms){return new Promise(function(r){setTimeout(r,ms)})}
 function rand(a,b){return Math.floor(Math.random()*(b-a+1))+a}
-function setMpStatus(msg,event){
-  var el=$('chat');
-  if(el){el.textContent=msg;if(event){el.classList.add('event')}}
-  var st=$('raceStatus');if(st)st.textContent='MP';
-}
-function stopNetworkRace(msg){
+function stopNetworkRace(){
   if(mode==='run'||mode==='countdown'||mode==='done'||mode==='timeup'){
     mode='idle';countT=0;hideResults();
   }
-  setMpStatus(msg);
 }
 
 /* ── SOUND ── */
@@ -560,7 +333,6 @@ function noiseBurst(dur,vol,freq,q,pan){
   }catch(e){}
 }
 var SFX={
-  bet:function(){beep(880,.08,'square',.1);setTimeout(function(){beep(1100,.06,'square',.08)},60)},
   raceStart:function(){[440,550,660,880].forEach(function(f,i){setTimeout(function(){beep(f,.12,'sawtooth',.08)},i*80)})},
   count:function(){beep(560,.09,'square',.09)},
   bump:function(v,pan){
@@ -585,7 +357,6 @@ var SFX={
     beep(112,.055,'square',.018+.025*v,pan);
   },
   racing:function(){beep(120,.3,'sawtooth',.04)},
-  settle:function(){beep(660,.15,'sine',.12);setTimeout(function(){beep(880,.15,'sine',.1)},120);setTimeout(function(){beep(1100,.2,'sine',.08)},240)},
   win:function(){[523,659,784,1047].forEach(function(f,i){setTimeout(function(){beep(f,.18,'sine',.12)},i*100)})},
   error:function(){beep(220,.25,'square',.1);setTimeout(function(){beep(180,.3,'square',.08)},150)},
   click:function(){beep(1200,.04,'square',.06)}
@@ -741,8 +512,8 @@ function sizeScene(){
 }
 sizeScene();
 if(window.addEventListener)window.addEventListener('resize',sizeScene);
-/* On a phone the hub grows or scrolls under the track, which resizes the
-   canvas cell without any window resize, so the backing store would stretch. */
+/* Browser chrome and rotation resize the canvas cell without a window
+   resize, so keep the backing store in step. */
 if(window.ResizeObserver&&SCV){try{new ResizeObserver(function(){sizeScene()}).observe(SCV)}catch(e){}}
 
 /* the racing line: road centre in world units, as a function of distance */
@@ -974,7 +745,6 @@ function finishNetworkRace(m){
   mode=finishKind==='timeup'?'timeup':'done';
   if(raceWon)SFX.win();else SFX.error();
   showResults();
-  setMpStatus('MP '+raceTransport.room+' // '+(raceWon?'YOU WIN':'RIVAL WINS'));
 }
 
 /* Two liveries from one sprite: the player's blue and the rival's red. */
@@ -1075,18 +845,17 @@ function SocketTransport(url,seed,room){
     if(ws&&(ws.readyState===0||ws.readyState===1))return;
     try{
       ws=new WebSocket(url+(url.indexOf('?')<0?'?':'&')+'room='+encodeURIComponent(room));
-      ws.onopen=function(){api.connected=true;send({type:'join',room:room});setMpStatus('MP '+room+' // CONNECTED // WAITING');queueSay('WAITING FOR OPPONENT\u2026');};
+      ws.onopen=function(){api.connected=true;send({type:'join',room:room});queueSay('WAITING FOR OPPONENT\u2026');};
       ws.onmessage=onMessage;
       ws.onerror=function(){};
       ws.onclose=function(){
         api.connected=false;
         if(!closed&&attempts<2){attempts++;reconnectTimer=setTimeout(connect,1200)}
         else if(!closed){
-          setMpStatus('MP '+room+' // CONNECTION LOST');
           if(MP_ROOM==='PUBLIC')showQueueScreen('CONNECTION LOST // CANCEL TO RETRY');
         }
       };
-    }catch(e){ws=null;setMpStatus('MP '+room+' // CONNECT FAILED');}
+    }catch(e){ws=null;queueSay('CONNECTION FAILED // CANCEL TO RETRY');}
   }
   function onMessage(ev){
     /* A start/finish already in flight must not reopen a race after the
@@ -1096,13 +865,11 @@ function SocketTransport(url,seed,room){
     if(m.type==='joined'){
       api.slot=m.playerId;api.seed=m.seed;api.room=m.room||room;
       var seedEl=$('seed');if(seedEl)seedEl.textContent=room;
-      setMpStatus('MP '+room+' // '+m.playerId.toUpperCase()+' // WAITING FOR RIVAL');
       queueSay('WAITING FOR OPPONENT\u2026');
       window.__mpStats={room:room,slot:api.slot,phase:m.phase||'waiting',tick:0,cars:[]};
     }else if(m.type==='start'){
       api.seed=m.seed;
       hideScreens();
-      setMpStatus('MP '+room+' // '+String(api.slot||'').toUpperCase()+' // RACE START');
       startRun({network:true,seed:m.seed,startAt:m.startAt,startZ:m.startZ});
     }else if(m.type==='state'&&m.cars){
       for(var i=0;i<m.cars.length;i++)if(m.cars[i].id)latest[m.cars[i].id]=m.cars[i];
@@ -1111,11 +878,10 @@ function SocketTransport(url,seed,room){
       window.__mpStats={room:room,slot:api.slot,phase:'finished',tick:0,cars:m.cars||[]};
       finishNetworkRace(m);
     }else if(m.type==='aborted'||m.type==='peerLeft'){
-      stopNetworkRace('MP '+room+' // '+(m.reason==='peer-left'?'RIVAL LEFT':'WAITING'));
+      stopNetworkRace();
       if(MP_ROOM==='PUBLIC')showQueueScreen('RIVAL LEFT // WAITING FOR OPPONENT');
     }else if(m.type==='error'){
       var err=String(m.message||'ERROR').toUpperCase().replace(/-/g,' ');
-      setMpStatus('MP '+room+' // '+err);
       queueSay('SERVER: '+err);
     }
   }
@@ -1128,7 +894,7 @@ function SocketTransport(url,seed,room){
   return api;
 }
 var raceTransport=MP_ROOM?new SocketTransport(MP_SERVER,RACE_SEED,MP_ROOM):new LocalTransport(RACE_SEED);
-if(MP_ROOM){setMpStatus('MP '+MP_ROOM+' // CONNECTING');raceTransport.begin();}
+if(MP_ROOM){raceTransport.begin();}
 
 /* Scuffs and dents live in the car's local space, so they rotate and scale
    with the body. Hard hits add the first marks; sustained scrapes add more. */
@@ -2157,12 +1923,6 @@ if(SCV){
   pad.addEventListener('pointerdown',function(e){if(e.target===pad)e.preventDefault()});
 })();
 
-var hubBtn=$('hubBtn');
-if(hubBtn)hubBtn.onclick=function(){
-  var open=document.body.classList.toggle('hubopen');
-  hubBtn.textContent=open?'DRIVE':'HUB';
-  SFX.click();sizeScene();
-};
 var resultAgainBtn=$('resultAgain');
 if(resultAgainBtn)resultAgainBtn.onclick=function(){SFX.click();startRun();};
 
@@ -2197,7 +1957,7 @@ function backToMode(){
   raceTransport=new LocalTransport(RACE_SEED);
   mode='idle';countT=0;runT=0;
   hideResults();clearHeld();
-  startIdleChat();setScreen(modeScreen);
+  setScreen(modeScreen);
 }
 function enterPvp(){
   if(raceTransport&&raceTransport.close)raceTransport.close();
@@ -2216,158 +1976,6 @@ $('queueCancel').onclick=function(){SFX.click();backToMode()};
 $('resultMenu').onclick=function(){SFX.click();backToMode()};
 /* A room link is an explicit two-player invite, so it starts straight away. */
 if(MP_ROOM)hideScreens();else setScreen(startScreen);
-
-/* ── STATE ── */
-var provider,signer,contract,rid=0,lastWinner=null,selectedTier=1;
-var ethPrice=0,prevStatus='',testRunning=false,testRaceId=9000;
-
-/* ── ETH PRICE ── */
-function fetchEthPrice(){
-  fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd')
-    .then(function(r){return r.json()})
-    .then(function(d){ethPrice=d.ethereum.usd;$('ethUsd').textContent='ETH ~$'+ethPrice.toLocaleString()})
-    .catch(function(){});
-}
-fetchEthPrice();setInterval(fetchEthPrice,60000);
-
-/* ── LEADERBOARD ── */
-var wins=[0,0,0,0,0,0,0,0,0,0],totalRaces=0;
-function updateLeaderboard(){
-  var sorted=[0,1,2,3,4,5,6,7,8,9].sort(function(a,b){return wins[b]-wins[a]});
-  $('lbList').innerHTML=sorted.map(function(idx,i){
-    var pct=totalRaces?((wins[idx]/totalRaces)*100).toFixed(0):'0';
-    return '<div class="lb-row">'
-      +'<span class="lb-rank">'+(i+1)+'</span>'
-      +'<span class="lb-color" style="background:'+DC[idx].fill+'"></span>'
-      +'<span class="lb-name" style="color:'+DC[idx].fill+'">'+D[idx]+'</span>'
-      +'<span class="lb-wins">'+wins[idx]+'W \u00b7 '+pct+'%</span>'
-      +'</div>';
-  }).join('');
-}
-
-/* ── HISTORY ── */
-var raceHistory=[];
-function addHistory(rid2,winnerIdx,pool,isTest){
-  raceHistory.unshift({rid:rid2,winner:D[winnerIdx],color:DC[winnerIdx].fill,pool:typeof pool==='number'?pool.toFixed(4):String(pool),isTest:!!isTest});
-  if(raceHistory.length>12)raceHistory.pop();
-  renderHistory();
-}
-function renderHistory(){
-  if(!raceHistory.length)return;
-  $('histList').innerHTML=raceHistory.map(function(h){
-    return '<div class="hist-row"><span class="hist-winner" style="color:'+h.color+'">'+(h.isTest?'\u26a1':'#')+h.rid+' '+h.winner+'</span><span class="hist-pool">'+h.pool+' ETH</span></div>';
-  }).join('');
-}
-
-/* ── BUILD UI ── */
-function build(){
-  $('driver').innerHTML=D.map(function(n,i){
-    return '<option value="'+i+'">'+(i+1)+' // '+n+'</option>';
-  }).join('');
-  var rooms=document.querySelectorAll('.race-room');
-  for(var r=0;r<rooms.length;r++){
-    (function(x){
-      x.onclick=function(){
-        for(var j=0;j<rooms.length;j++)rooms[j].classList.remove('active');
-        x.classList.add('active');selectedTier=Number(x.getAttribute('data-tier'));
-        agentSay('$'+selectedTier+' room selected.');SFX.click();
-      };
-    })(rooms[r]);
-  }
-  updateLeaderboard();
-}
-build();
-
-/* ── AGENT CHAT ── */
-function agentSay(msg,isEvent){
-  if(MP_ROOM&&!isEvent)return;
-  var el=$('chat');el.textContent=msg;
-  if(isEvent){el.classList.add('event');$('scrL').classList.add('flash');$('scrR').classList.add('flash');setTimeout(function(){el.classList.remove('event');$('scrL').classList.remove('flash');$('scrR').classList.remove('flash')},2000)}
-}
-var idleChat=['scanning the grid.','opening the books.','commit locked on-chain.','humans are choosing their machines.','no favorites. only entropy.','bet window is live.','locking the grid.','seed stays with me until reveal.','settlement is automatic.','every race is provably fair.','odds are equal. luck is not.','the grid never lies.','wheels down. eyes up.','chance is the only constant.','the chain remembers everything.','no bailouts. no favors.','entropy loves company.'];
-var chatIdx=0,idleTimer;
-function startIdleChat(){clearInterval(idleTimer);chatIdx=0;agentSay(idleChat[0]);idleTimer=setInterval(function(){chatIdx=(chatIdx+1)%idleChat.length;agentSay(idleChat[chatIdx])},4200)}
-startIdleChat();
-function flashEvent(msg){agentSay(msg,true);clearTimeout(flashEvent._t);flashEvent._t=setTimeout(function(){startIdleChat()},6000)}
-
-/* ── WALLET ── */
-async function connect(){
-  if(!window.ethereum)return alert('Install MetaMask');
-  await ethereum.request({method:'eth_requestAccounts'});
-  try{await ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:CHAIN.chainId}]})}
-  catch(e){if(e.code===4902)await ethereum.request({method:'wallet_addEthereumChain',params:[CHAIN]})}
-  provider=new ethers.BrowserProvider(window.ethereum);signer=await provider.getSigner();
-  contract=new ethers.Contract(CONTRACT,ABI,signer);
-  var a=await signer.getAddress();
-  $('walletBtn').textContent=a.slice(0,6)+'\u2026'+a.slice(-4);
-  $('betBtn').disabled=false;$('betBtn').textContent='PLACE BET';
-  agentSay('wallet connected. '+a.slice(0,6)+' online.',true);SFX.bet();poll();
-}
-$('walletBtn').onclick=connect;
-
-/* One shared read-only provider. A fresh JsonRpcProvider per poll left its
-   network-detection loop running and froze the page ~2s after load. */
-var rpcProvider=null;
-function getRpc(){
-  if(!rpcProvider){rpcProvider=new ethers.JsonRpcProvider(CHAIN.rpcUrls[0],undefined,{staticNetwork:true,batchMaxCount:1});rpcProvider.pollingInterval=15000}
-  return rpcProvider;
-}
-async function readContract(){if(contract)return contract;return new ethers.Contract(CONTRACT,ABI,getRpc())}
-
-/* ── POLL ── */
-var polling=false;
-async function poll(){
-  if(testRunning||polling)return;
-  polling=true;
-  try{
-    var c=await readContract(),cid=Number(await c.currentRaceId());
-    if(!cid)return;rid=cid-1;
-    var r=await c.getRace(rid),tl=Number(await c.timeUntilBettingEnds(rid)),pool=Number(ethers.formatEther(r[10]));
-    var status=r[8]?'SETTLED':r[7]?'RUNNING':r[6]?'BETTING':'PENDING';
-    var poolUsd=ethPrice?(pool*ethPrice).toFixed(2):'';
-    $('raceId').textContent='#'+rid;
-    $('pool').textContent=pool.toFixed(4)+' ETH';
-    $('timer').textContent=String(Math.floor(tl/60)).padStart(2,'0')+':'+String(tl%60).padStart(2,'0');
-    $('raceStatus').textContent=status;
-    var z='0x'+'0'.repeat(64);
-    $('commit').textContent=r[4]!==z?r[4].slice(0,12)+'\u2026':'\u2014';
-    $('seed').textContent=r[5]!==z?r[5].slice(0,12)+'\u2026':'HIDDEN';
-    $('win').textContent=r[7]?D[Number(r[9])]:'\u2014';
-    for(var i=0;i<10;i++){try{var bc=Number(await c.getDriverBetCount(rid,i));var el=$('bc'+i);if(el)el.textContent=bc+' bet'+(bc!==1?'s':'')}catch(e){}}
-    if(status!==prevStatus){
-      if(status==='BETTING'){flashEvent('race #'+rid+' open. place your bets.');SFX.raceStart()}
-      else if(status==='RUNNING'){flashEvent('grid locked. wheels down.');SFX.raceStart()}
-      else if(status==='SETTLED'){flashEvent('race #'+rid+' settled. chain confirms.');SFX.settle()}
-      prevStatus=status;
-    }
-    if(r[8]&&r[7]&&Number(r[9])!==lastWinner){
-      lastWinner=Number(r[9]);var w=DC[lastWinner];
-      $('winnerName').textContent=D[lastWinner];$('winnerName').style.color=w.fill;
-      $('winnerPool').textContent='POOL '+pool.toFixed(4)+' ETH'+(poolUsd?' (~$'+poolUsd+')':'');
-      $('winner').classList.add('on');
-      wins[lastWinner]++;totalRaces++;addHistory(rid,lastWinner,pool);updateLeaderboard();
-      flashEvent(D[lastWinner]+' wins race #'+rid+'!');SFX.win();
-    }
-  }catch(e){console.error('Poll error:',e)}finally{polling=false}
-}
-
-/* ── BET ── */
-$('betBtn').onclick=async function(){
-  if(!signer)return connect();
-  var amt=$('amount').value;
-  if(!amt||Number(amt)<=0)return alert('Enter ETH amount');
-  var b=$('betBtn');b.disabled=true;b.textContent='SUBMITTING\u2026';
-  flashEvent('bet received. '+amt+' ETH \u2192 '+D[Number($('driver').value)]+'.');SFX.bet();
-  try{
-    var tx=await contract.placeBet(rid,Number($('driver').value),{value:ethers.parseEther(amt)});
-    b.textContent='CONFIRMING\u2026';await tx.wait();b.textContent='BET PLACED';
-    flashEvent('chain confirmed. tx: '+tx.hash.slice(0,14)+'\u2026');
-    setTimeout(function(){b.disabled=false;b.textContent='PLACE BET'},2200);
-  }catch(e){b.disabled=false;b.textContent='PLACE BET';agentSay('tx rejected: '+(e.reason||e.shortMessage||e.message).slice(0,40),true);SFX.error();alert(e.reason||e.shortMessage||e.message)}
-};
-
-/* ── START ── */
-poll();setInterval(poll,2200);
 
 })();
 </script>
