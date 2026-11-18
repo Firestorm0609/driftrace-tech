@@ -143,10 +143,10 @@ body[data-pad-layout="left"] .touch{flex-direction:column;align-items:flex-start
 body[data-pad-layout="right"] .touch{flex-direction:column;align-items:flex-end;justify-content:flex-end}
 /* auto gas removes the throttle button, so only braking needs a thumb */
 body.auto-gas .tc-gas{display:none}
-/* tilt and swipe replace the steering buttons, leaving the pedals in reach */
-body.tilt-live .touch-group.steer,body[data-control-type="swipe"] .touch-group.steer{display:none}
-body.tilt-live .touch,body[data-control-type="swipe"] .touch{justify-content:flex-end}
-body.tilt-live[data-pad-layout="left"] .touch,body[data-control-type="swipe"][data-pad-layout="left"] .touch{justify-content:flex-start}
+/* tilt and tap replace the steering buttons, leaving the pedals in reach */
+body.tilt-live .touch-group.steer,body[data-control-type="tap"] .touch-group.steer{display:none}
+body.tilt-live .touch,body[data-control-type="tap"] .touch{justify-content:flex-end}
+body.tilt-live[data-pad-layout="left"] .touch,body[data-control-type="tap"][data-pad-layout="left"] .touch{justify-content:flex-start}
 @media (pointer:coarse),(max-width:820px){.touch{display:flex}}
 /* -- PHONES PORTRAIT: full-bleed track -- */
 /* Phones, plus touch tablets that would otherwise land in the tiny sidebar
@@ -346,7 +346,7 @@ body.tilt-live[data-pad-layout="left"] .touch,body[data-control-type="swipe"][da
       <span class="setting-label">CONTROL TYPE</span>
       <div class="seg seg-3" id="ctrlType" role="group" aria-label="Control type">
         <button type="button" data-v="pad">PAD</button>
-        <button type="button" data-v="swipe">SWIPE</button>
+        <button type="button" data-v="tap">TAP</button>
         <button type="button" data-v="tilt">TILT</button>
       </div>
       <p class="setting-hint" id="ctrlHint">Steer with the on-screen buttons.</p>
@@ -692,14 +692,15 @@ var keys={l:0,r:0,u:0,d:0},steerV=0,offRoad=false;
 var IS_TOUCH=false;
 try{IS_TOUCH=(window.matchMedia&&window.matchMedia('(pointer:coarse)').matches)||(navigator.maxTouchPoints||0)>0||('ontouchstart' in window)}catch(e){}
 /* -- CONTROL SETTINGS --
-   The pad, swipe steering and tilt all feed the same steer axis; size and
+   The pad, tap steering and tilt all feed the same steer axis; size and
    position only change the on-screen buttons. Choices survive a reload. */
 var CONTROL_KEY='drift.controls.v1';
 var controlSettings={type:'pad',size:'m',layout:'split',invert:false,autoGas:true};
 try{
   var savedControls=JSON.parse(localStorage.getItem(CONTROL_KEY)||'null');
   if(savedControls){
-    if(['pad','swipe','tilt'].indexOf(savedControls.type)>=0)controlSettings.type=savedControls.type;
+    if(savedControls.type==='swipe')savedControls.type='tap';
+    if(['pad','tap','tilt'].indexOf(savedControls.type)>=0)controlSettings.type=savedControls.type;
     if(['s','m','l','xl'].indexOf(savedControls.size)>=0)controlSettings.size=savedControls.size;
     if(['split','mirror','left','right'].indexOf(savedControls.layout)>=0)controlSettings.layout=savedControls.layout;
     controlSettings.invert=!!savedControls.invert;
@@ -707,7 +708,7 @@ try{
   }
 }catch(e){}
 var tiltLive=false,tiltListening=false,tiltBase=null,tiltTarget=0,tiltSteer=0,tiltProbe=0,lastTiltV=null;
-var swipeId=null,swipeStartX=0,swipeSteer=0;
+var tapId=null,tapSteer=0,tapReleaseT=0;
 /* The keyboard and the on-screen pad can be held at the same time, so each
    source keeps its own bits and `keys` stays the merged view the physics,
    the HUD and the network transport already read. */
@@ -761,7 +762,7 @@ function drawHud(){
       shadeText('MULTIPLAYER '+MP_ROOM,RW*0.5,RH*0.42,'#eaf6d2','center');
       shadeText('WAITING FOR OPPONENT',RW*0.5,RH*0.42+12,'#a9c98c','center');
     }else{
-      var steerHint=controlSettings.type==='tilt'&&tiltLive?'TILT TO STEER':(controlSettings.type==='swipe'?'SWIPE TO STEER':(IS_TOUCH?'\u25c0 \u25b6 STEER':'\u2190 \u2192 steer'));
+      var steerHint=controlSettings.type==='tilt'&&tiltLive?'TILT TO STEER':(controlSettings.type==='tap'?'TAP LEFT / RIGHT TO TILT':(IS_TOUCH?'\u25c0 \u25b6 STEER':'\u2190 \u2192 steer'));
       var autoGas=IS_TOUCH&&controlSettings.autoGas;
       shadeText(IS_TOUCH?(autoGas?'TAP TO DRIVE':'TAP GAS TO DRIVE'):'PRESS ENTER TO DRIVE',RW*0.5,RH*0.42,'#eaf6d2','center');
       shadeText(steerHint+(IS_TOUCH?(autoGas?'   AUTO GAS':'   GAS / BRK'):'    \u2191 \u2193 speed'),RW*0.5,RH*0.42+12,'#a9c98c','center');
@@ -831,6 +832,7 @@ function startRun(opts){
   var startT=opts.startAt?Math.max(0,(+opts.startAt-Date.now())/1000):3;
   mode='countdown';countT=startT;countStep=Math.ceil(startT)||1;startFlash=0;
   runT=0;runEnd=0;steerV=0;drift=-0.58;driftV=0;SPD=0;raceWon=false;
+  tapId=null;tapSteer=0;tapReleaseT=0;
   runTopSpd=0;finishKind='';dmgFlash=0;
   misfireT=.9;misfireCut=0;misfirePuff=false;impactJolt=0;
   gearNow=gearAt(SPD/MAXSPD).g;gearJolt=0;shiftCut=0;
@@ -1962,7 +1964,9 @@ function stepRace(dt,inputs){
   }else{
     if(mode==='run'){
       runT+=dt;
-      var analog=controlSettings.type==='tilt'?tiltSteer:(controlSettings.type==='swipe'?swipeSteer:0);
+      if(tapReleaseT>0)tapReleaseT=Math.max(0,tapReleaseT-dt);
+      if(tapId===null&&tapReleaseT<=0)tapSteer=0;
+      var analog=controlSettings.type==='tilt'?tiltSteer:(controlSettings.type==='tap'?tapSteer:0);
       var sIn=Math.max(-1,Math.min(1,((cmd.l?-1:0)+(cmd.r?1:0))+analog));
       stepVehicle(playerCar,{l:cmd.l,r:cmd.r,u:cmd.u,d:cmd.d,steer:sIn},dt,runT);
       if(Math.abs(playerCar.spd)>runTopSpd)runTopSpd=Math.abs(playerCar.spd);
@@ -2230,39 +2234,39 @@ document.addEventListener('keyup',function(e){var k=keyMap[e.code];if(k){keyHeld
 function clearHeld(){
   keyHeld.l=keyHeld.r=keyHeld.u=keyHeld.d=0;
   touchHeld.l=touchHeld.r=touchHeld.u=touchHeld.d=0;
-  tiltTarget=0;tiltSteer=0;swipeId=null;swipeSteer=0;
+  tiltTarget=0;tiltSteer=0;tapId=null;tapSteer=0;tapReleaseT=0;
   syncKeys();steerV=0;
   var tb=document.querySelectorAll('.tc-btn');
   for(var i=0;i<tb.length;i++)tb[i].classList.remove('on');
 }
 window.addEventListener('blur',clearHeld);
 window.addEventListener('pagehide',clearHeld);
-/* Swipe steering: one finger on the track, relative to where it landed.
-   The pedals keep their own pointers, so gas can be held at the same time. */
-function swipeSpan(){return Math.max(70,Math.min(150,Math.min(window.innerWidth,window.innerHeight)*0.34))}
-function startSwipe(e){
-  if(controlSettings.type!=='swipe'||swipeId!==null)return;
-  swipeId=e.pointerId;swipeStartX=e.clientX;swipeSteer=0;
+/* Tap steering: the left half of the track tilts the car left and the
+   right half tilts it right. Hold for a continuous lean; a quick tap keeps
+   the lean for a short pulse so a single tap is still felt. */
+function tapSide(e){
+  var r=SCV.getBoundingClientRect();
+  return e.clientX<r.left+r.width*0.5?-1:1;
+}
+function startTap(e){
+  if(controlSettings.type!=='tap'||tapId!==null)return;
+  tapId=e.pointerId;tapSteer=tapSide(e);tapReleaseT=0;
   try{SCV.setPointerCapture(e.pointerId)}catch(err){}
 }
-function moveSwipe(e){
-  if(e.pointerId!==swipeId)return;
-  swipeSteer=Math.max(-1,Math.min(1,(e.clientX-swipeStartX)/swipeSpan()));
-}
-function endSwipe(e){
-  if(e&&e.pointerId!==swipeId)return;
-  swipeId=null;swipeSteer=0;
+function endTap(e){
+  if(e&&e.pointerId!==tapId)return;
+  if(tapId!==null&&tapReleaseT<=0)tapReleaseT=.14;
+  tapId=null;
 }
 if(SCV){
   SCV.style.touchAction='none';
   SCV.addEventListener('pointerdown',function(e){
     if(mode==='idle'||mode==='done'||mode==='timeup')startRun();
-    startSwipe(e);
+    startTap(e);
   });
-  SCV.addEventListener('pointermove',moveSwipe);
-  SCV.addEventListener('pointerup',endSwipe);
-  SCV.addEventListener('pointercancel',endSwipe);
-  SCV.addEventListener('lostpointercapture',endSwipe);
+  SCV.addEventListener('pointerup',endTap);
+  SCV.addEventListener('pointercancel',endTap);
+  SCV.addEventListener('lostpointercapture',endTap);
 }
 
 /* ── ON-SCREEN PAD ──
@@ -2292,7 +2296,7 @@ if(SCV){
 })();
 
 /* ── CONTROL SETTINGS ──
-   PAD is the four-button default; SWIPE steers from a drag on the track;
+   PAD is the four-button default; TAP steers from the side of the track;
    TILT reads the motion sensor. All three write the same steer axis. */
 function saveControls(){try{localStorage.setItem(CONTROL_KEY,JSON.stringify(controlSettings))}catch(e){}}
 function setSeg(id,val){
@@ -2321,8 +2325,8 @@ function applyControlSettings(){
   if(!hint)return;
   if(controlSettings.type==='tilt'){
     hint.textContent=tiltLive?'Tilt the phone to steer. SET LEVEL calibrates while you hold it.':'Motion access is needed for tilt. Tap SET LEVEL to enable it.';
-  }else if(controlSettings.type==='swipe'){
-    hint.textContent='Touch the track and slide left or right to steer. Gas and brake stay on the right.';
+  }else if(controlSettings.type==='tap'){
+    hint.textContent='Tap or hold the left side to tilt left, the right side to tilt right. Gas and brake stay on the right.';
   }else{
     hint.textContent='Steer with the on-screen buttons. Size and position are remembered.';
   }
@@ -2390,7 +2394,7 @@ function bindSeg(id,key){
       if(v==='tilt'){
         controlSettings.type='tilt';saveControls();applyControlSettings();enableTilt();return;
       }
-      controlSettings.type=v;tiltTarget=0;tiltSteer=0;swipeSteer=0;
+      controlSettings.type=v;tiltTarget=0;tiltSteer=0;tapSteer=0;tapReleaseT=0;tapId=null;
       if(tiltProbe){clearTimeout(tiltProbe);tiltProbe=0;}
     }else{
       controlSettings[key]=v;
