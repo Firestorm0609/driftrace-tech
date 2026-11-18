@@ -109,8 +109,7 @@ function sanitizeInput(input) {
     l: input && input.l ? 1 : 0,
     r: input && input.r ? 1 : 0,
     u: input && input.u ? 1 : 0,
-    d: input && input.d ? 1 : 0,
-    hb: input && input.hb ? 1 : 0
+    d: input && input.d ? 1 : 0
   };
 }
 
@@ -126,7 +125,7 @@ function stepCar(car, dt, raceT) {
   let rx = Math.cos(car.heading), rz = -Math.sin(car.heading);
   let fwd = car.vx * fx + car.vz * fz;
   const speedMag = Math.sqrt(car.vx * car.vx + car.vz * car.vz);
-  const handbrake = !!input.hb || (!!input.d && speedMag > 120);
+  const handbrake = !!input.d && speedMag > 120;
   let yaw = car.steer * 1.8 * Math.min(1, speedMag / 230);
   if (offRoad) yaw *= 0.72;
   if (handbrake) yaw *= 1.45;
@@ -164,7 +163,7 @@ function stepCar(car, dt, raceT) {
   car.spd = fwd;
   car.drift = (car.x - roadX(car.z)) / ROADH;
   car.driftV = lat / ROADH;
-  car.brake = (!!input.d && fwd >= -0.5) || handbrake;
+  car.brake = !!input.d && fwd >= -0.5;
   if (car.z >= FINISH_Z && !car.done) {
     car.done = true;
     car.finishT = raceT;

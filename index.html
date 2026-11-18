@@ -135,7 +135,6 @@ html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%}
 .tc-btn.on{border-color:var(--neon);background:#ccff0029;color:#eaffb0}
 .tc-gas{width:calc(var(--pad-gas)*var(--pad-scale));height:calc(var(--pad-gas)*var(--pad-scale));font-size:calc(var(--pad-gas-fs)*var(--pad-scale));letter-spacing:.1em;border-color:var(--neon)}
 .tc-brake{width:calc(var(--pad-brake)*var(--pad-scale));height:calc(var(--pad-brake)*var(--pad-scale));font-size:calc(var(--pad-brake-fs)*var(--pad-scale));opacity:.9}
-.tc-handbrake{width:calc(var(--pad-brake)*var(--pad-scale));height:calc(var(--pad-brake)*var(--pad-scale));font-size:calc(var(--pad-brake-fs)*var(--pad-scale));opacity:.9;color:#ffd23f;border-color:#ffd23f80;letter-spacing:.04em}
 body[data-pad-size="s"] .touch{--pad-scale:.86}
 body[data-pad-size="l"] .touch{--pad-scale:1.16}
 body[data-pad-size="xl"] .touch{--pad-scale:1.3}
@@ -207,7 +206,6 @@ body.tilt-live[data-pad-layout="left"] .touch,body[data-control-type="swipe"][da
 }
 /* keep the pad inside narrow screens even at the largest button size */
 @media (max-width:400px){.touch{padding-left:6px;padding-right:6px}.touch-group{gap:6px}}
-@media (max-width:360px){.touch{--pad-btn:56px;--pad-gas:64px;--pad-brake:44px;--pad-fs:18px;--pad-gas-fs:10px;--pad-brake-fs:8px;padding-left:4px;padding-right:4px;gap:4px}.touch-group{gap:4px}}
 @media (max-width:340px){body[data-pad-size="l"] .touch{--pad-scale:1.02}body[data-pad-size="xl"] .touch{--pad-scale:1.06}.touch{padding-left:4px;padding-right:4px}.touch-group{gap:4px}}
 @keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
 /* -- TITLE / MODE / MATCHMAKING --
@@ -285,7 +283,6 @@ body.tilt-live[data-pad-layout="left"] .touch,body[data-control-type="swipe"][da
       </div>
       <div class="touch-group pedals">
         <button class="tc-btn tc-brake" type="button" data-k="d" aria-label="Brake">BRK</button>
-        <button class="tc-btn tc-handbrake" type="button" data-k="hb" aria-label="Handbrake">HB</button>
         <button class="tc-btn tc-gas" type="button" data-k="u" aria-label="Accelerate">GAS</button>
       </div>
     </div>
@@ -691,7 +688,7 @@ var dmgFlash=0,runTopSpd=0,finishKind='';
 var misfireT=0,misfireCut=0,misfirePuff=false,impactJolt=0;
 var runStartZ=0;
 var playerCar=null,rivalCar=null,cars=[];
-var keys={l:0,r:0,u:0,d:0,hb:0},steerV=0,offRoad=false;
+var keys={l:0,r:0,u:0,d:0},steerV=0,offRoad=false;
 var IS_TOUCH=false;
 try{IS_TOUCH=(window.matchMedia&&window.matchMedia('(pointer:coarse)').matches)||(navigator.maxTouchPoints||0)>0||('ontouchstart' in window)}catch(e){}
 /* -- CONTROL SETTINGS --
@@ -714,13 +711,12 @@ var swipeId=null,swipeStartX=0,swipeSteer=0;
 /* The keyboard and the on-screen pad can be held at the same time, so each
    source keeps its own bits and `keys` stays the merged view the physics,
    the HUD and the network transport already read. */
-var keyHeld={l:0,r:0,u:0,d:0,hb:0},touchHeld={l:0,r:0,u:0,d:0,hb:0};
+var keyHeld={l:0,r:0,u:0,d:0},touchHeld={l:0,r:0,u:0,d:0};
 function syncKeys(){
   keys.l=(keyHeld.l||touchHeld.l)?1:0;
   keys.r=(keyHeld.r||touchHeld.r)?1:0;
   keys.u=(keyHeld.u||touchHeld.u)?1:0;
   keys.d=(keyHeld.d||touchHeld.d)?1:0;
-  keys.hb=(keyHeld.hb||touchHeld.hb)?1:0;
 }
 var ONG=0.63;   /* drift past this and a wheel is on the grass */
 
@@ -1001,7 +997,7 @@ cars=[playerCar,rivalCar];
    The race only calls this small interface. A local race drives the AI
    car; a replay feeds recorded snapshots; a socket feeds the latest state
    from another browser. Swapping transports does not change the game loop. */
-function keyboardInput(k){return{l:k.l?1:0,r:k.r?1:0,u:k.u?1:0,d:k.d?1:0,hb:k.hb?1:0}}
+function keyboardInput(k){return{l:k.l?1:0,r:k.r?1:0,u:k.u?1:0,d:k.d?1:0}}
 function applyRemoteState(car,s){
   if(!s)return;
   car.z=+s.z;
@@ -1780,7 +1776,7 @@ function stepVehicle(car,input,dt,raceT){
   var rx=Math.cos(car.heading),rz=-Math.sin(car.heading);
   var fwd=car.vx*fx+car.vz*fz,speedAbs=Math.abs(fwd);
   var speedMag=Math.sqrt(car.vx*car.vx+car.vz*car.vz);
-  var handbrake=!!input.hb||(!!input.d&&speedMag>120);
+  var handbrake=!!input.d&&speedMag>120;
   var yaw=car.steer*1.8*Math.min(1,speedMag/230);
   if(offRoadHere)yaw*=0.72;
   if(handbrake)yaw*=1.45;
@@ -1822,7 +1818,7 @@ function stepVehicle(car,input,dt,raceT){
   car.spd=fwd;
   car.drift=(car.x-roadX(car.z))/ROADH;
   car.driftV=lat/ROADH;
-  car.brake=(!!input.d&&fwd>=-0.5)||handbrake;
+  car.brake=!!input.d&&fwd>=-0.5;
   if(car.z>=finishZ&&!car.done){car.done=true;car.finishT=raceT;}
 }
 function stepAICar(car,dt){
@@ -1930,7 +1926,7 @@ function stepRace(dt,inputs){
   simTime+=dt;
   var raw=inputs||keys;
   /* copy the input so the auto-throttle never sticks in the shared key map */
-  var cmd={l:raw.l?1:0,r:raw.r?1:0,u:raw.u?1:0,d:raw.d?1:0,hb:raw.hb?1:0};
+  var cmd={l:raw.l?1:0,r:raw.r?1:0,u:raw.u?1:0,d:raw.d?1:0};
   /* auto gas keeps the throttle pinned unless the brake is held, so a
      thumb is free for steering; keyboard and desktop stay manual */
   if(IS_TOUCH&&controlSettings.autoGas&&mode==='run'&&!cmd.d)cmd.u=1;
@@ -1968,7 +1964,7 @@ function stepRace(dt,inputs){
       runT+=dt;
       var analog=controlSettings.type==='tilt'?tiltSteer:(controlSettings.type==='swipe'?swipeSteer:0);
       var sIn=Math.max(-1,Math.min(1,((cmd.l?-1:0)+(cmd.r?1:0))+analog));
-      stepVehicle(playerCar,{l:cmd.l,r:cmd.r,u:cmd.u,d:cmd.d,hb:cmd.hb,steer:sIn},dt,runT);
+      stepVehicle(playerCar,{l:cmd.l,r:cmd.r,u:cmd.u,d:cmd.d,steer:sIn},dt,runT);
       if(Math.abs(playerCar.spd)>runTopSpd)runTopSpd=Math.abs(playerCar.spd);
       if(runT>=RUNTIME&&raceTransport.kind!=='socket')finishRun('timeup');
     }else{
@@ -2141,10 +2137,10 @@ function drawRace(alpha,ms,dt){
   var i;
   nextPuff-=dt;
   if(pVis&&mode==='run'&&Math.abs(SPD)>160&&
-     (Math.abs(pdriftV)>0.16||keys.d||keys.hb||offRoad)){
+     (Math.abs(pdriftV)>0.16||keys.d||offRoad)){
     if(nextPuff<=0&&smoke.length<92){
       nextPuff=.024+Math.random()*.014;
-      var smokePower=Math.min(1,.35+Math.abs(pdriftV)*.95+(offRoad?.25:0)+((keys.d||keys.hb)?.25:0));
+      var smokePower=Math.min(1,.35+Math.abs(pdriftV)*.95+(offRoad?.25:0)+(keys.d?.25:0));
       for(i=0;i<2;i++){
         smoke.push({x:pVis.x+(i?1:-1)*CARW*0.42*pVis.sc,y:pVis.y-2,
                     vx:(i?1:-1)*(12+24*smokePower)+(Math.random()*8-4),
@@ -2220,7 +2216,7 @@ if(sg)requestAnimationFrame(render);
 
 
 /* ── DRIVING CONTROLS ── */
-var keyMap={ArrowLeft:'l',KeyA:'l',ArrowRight:'r',KeyD:'r',ArrowUp:'u',KeyW:'u',ArrowDown:'d',KeyS:'d',ShiftLeft:'hb',ShiftRight:'hb'};
+var keyMap={ArrowLeft:'l',KeyA:'l',ArrowRight:'r',KeyD:'r',ArrowUp:'u',KeyW:'u',ArrowDown:'d',KeyS:'d'};
 document.addEventListener('keydown',function(e){
   var k=keyMap[e.code];
   if(k){keyHeld[k]=1;syncKeys();e.preventDefault();return;}
@@ -2232,8 +2228,8 @@ document.addEventListener('keydown',function(e){
 });
 document.addEventListener('keyup',function(e){var k=keyMap[e.code];if(k){keyHeld[k]=0;syncKeys();e.preventDefault();}});
 function clearHeld(){
-  keyHeld.l=keyHeld.r=keyHeld.u=keyHeld.d=keyHeld.hb=0;
-  touchHeld.l=touchHeld.r=touchHeld.u=touchHeld.d=touchHeld.hb=0;
+  keyHeld.l=keyHeld.r=keyHeld.u=keyHeld.d=0;
+  touchHeld.l=touchHeld.r=touchHeld.u=touchHeld.d=0;
   tiltTarget=0;tiltSteer=0;swipeId=null;swipeSteer=0;
   syncKeys();steerV=0;
   var tb=document.querySelectorAll('.tc-btn');
@@ -2328,7 +2324,7 @@ function applyControlSettings(){
   }else if(controlSettings.type==='swipe'){
     hint.textContent='Touch the track and slide left or right to steer. Gas and brake stay on the right.';
   }else{
-    hint.textContent='Steer with the on-screen buttons. HB is the handbrake: hold it with gas to slide. Size and position are remembered.';
+    hint.textContent='Steer with the on-screen buttons. Size and position are remembered.';
   }
 }
 function tiltValue(e){
