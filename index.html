@@ -141,6 +141,8 @@ body[data-pad-size="xl"] .touch{--pad-scale:1.3}
 body[data-pad-layout="mirror"] .touch{flex-direction:row-reverse}
 body[data-pad-layout="left"] .touch{flex-direction:column;align-items:flex-start;justify-content:flex-end}
 body[data-pad-layout="right"] .touch{flex-direction:column;align-items:flex-end;justify-content:flex-end}
+/* auto gas removes the throttle button, so only braking needs a thumb */
+body.auto-gas .tc-gas{display:none}
 /* tilt and swipe replace the steering buttons, leaving the pedals in reach */
 body.tilt-live .touch-group.steer,body[data-control-type="swipe"] .touch-group.steer{display:none}
 body.tilt-live .touch,body[data-control-type="swipe"] .touch{justify-content:flex-end}
@@ -240,6 +242,7 @@ body.tilt-live[data-pad-layout="left"] .touch,body[data-control-type="swipe"][da
 .setting-line{display:flex;align-items:stretch;gap:8px}
 .setting-line .menu-back{flex:1;width:auto;margin:0;min-height:44px}
 .check{display:flex;align-items:center;gap:6px;padding:0 8px;border:1px solid var(--dim);font-size:9px;font-weight:700;letter-spacing:.08em;white-space:nowrap;color:#a9c98c;cursor:pointer}
+.check-row{width:100%;min-height:44px;justify-content:center;background:#040704;letter-spacing:.16em}
 .check input{appearance:none;-webkit-appearance:none;display:grid;place-items:center;width:16px;height:16px;margin:0;border:1px solid var(--line);background:#040704}
 .check input:checked{background:var(--neon);border-color:var(--neon)}
 .check input:checked:after{content:'';width:8px;height:4px;border-left:2px solid #000;border-bottom:2px solid #000;transform:rotate(-45deg) translate(0,-1px)}
@@ -347,6 +350,11 @@ body.tilt-live[data-pad-layout="left"] .touch,body[data-control-type="swipe"][da
         <button type="button" data-v="tilt">TILT</button>
       </div>
       <p class="setting-hint" id="ctrlHint">Steer with the on-screen buttons.</p>
+    </div>
+    <div class="setting" id="autoGasRow">
+      <span class="setting-label">THROTTLE</span>
+      <label class="check check-row"><input type="checkbox" id="autoGas"> AUTO GAS</label>
+      <p class="setting-hint">Held for you on touch screens. Brake and reverse still work.</p>
     </div>
     <div class="setting">
       <span class="setting-label">BUTTON SIZE</span>
@@ -679,7 +687,7 @@ try{IS_TOUCH=(window.matchMedia&&window.matchMedia('(pointer:coarse)').matches)|
    The pad, swipe steering and tilt all feed the same steer axis; size and
    position only change the on-screen buttons. Choices survive a reload. */
 var CONTROL_KEY='drift.controls.v1';
-var controlSettings={type:'pad',size:'m',layout:'split',invert:false};
+var controlSettings={type:'pad',size:'m',layout:'split',invert:false,autoGas:true};
 try{
   var savedControls=JSON.parse(localStorage.getItem(CONTROL_KEY)||'null');
   if(savedControls){
@@ -687,6 +695,7 @@ try{
     if(['s','m','l','xl'].indexOf(savedControls.size)>=0)controlSettings.size=savedControls.size;
     if(['split','mirror','left','right'].indexOf(savedControls.layout)>=0)controlSettings.layout=savedControls.layout;
     controlSettings.invert=!!savedControls.invert;
+    if(typeof savedControls.autoGas==='boolean')controlSettings.autoGas=savedControls.autoGas;
   }
 }catch(e){}
 var tiltLive=false,tiltListening=false,tiltBase=null,tiltTarget=0,tiltSteer=0,tiltProbe=0,lastTiltV=null;
@@ -745,8 +754,9 @@ function drawHud(){
       shadeText('WAITING FOR OPPONENT',RW*0.5,RH*0.42+12,'#a9c98c','center');
     }else{
       var steerHint=controlSettings.type==='tilt'&&tiltLive?'TILT TO STEER':(controlSettings.type==='swipe'?'SWIPE TO STEER':(IS_TOUCH?'\u25c0 \u25b6 STEER':'\u2190 \u2192 steer'));
-      shadeText(IS_TOUCH?'TAP GAS TO DRIVE':'PRESS ENTER TO DRIVE',RW*0.5,RH*0.42,'#eaf6d2','center');
-      shadeText(steerHint+(IS_TOUCH?'   GAS / BRK':'    \u2191 \u2193 speed'),RW*0.5,RH*0.42+12,'#a9c98c','center');
+      var autoGas=IS_TOUCH&&controlSettings.autoGas;
+      shadeText(IS_TOUCH?(autoGas?'TAP TO DRIVE':'TAP GAS TO DRIVE'):'PRESS ENTER TO DRIVE',RW*0.5,RH*0.42,'#eaf6d2','center');
+      shadeText(steerHint+(IS_TOUCH?(autoGas?'   AUTO GAS':'   GAS / BRK'):'    \u2191 \u2193 speed'),RW*0.5,RH*0.42+12,'#a9c98c','center');
     }
     return;
   }
@@ -1685,6 +1695,9 @@ function stepRace(dt,inputs){
   prevCamZ=camZ;prevCAMH=CAMH;prevCamKickX=camKickX;
   simTime+=dt;
   var cmd=inputs||keys;
+  /* auto gas keeps the throttle pinned unless the brake is held, so a
+     thumb is free for steering; keyboard and desktop stay manual */
+  if(IS_TOUCH&&controlSettings.autoGas&&mode==='run'&&!cmd.d)cmd.u=1;
   var sCar=camZ+CARD;
   var dmgRatio=Math.min(1,pDamage.length/14),dmgBias=damageBias(pDamage);
   var bendN=Math.max(-1,Math.min(1,(roadX(sCar+170)-roadX(sCar-170))/620));
@@ -2140,7 +2153,10 @@ function applyControlSettings(){
   document.body.setAttribute('data-control-type',controlSettings.type);
   document.body.setAttribute('data-pad-size',controlSettings.size);
   document.body.setAttribute('data-pad-layout',controlSettings.layout);
+  document.body.classList.toggle('auto-gas',IS_TOUCH&&controlSettings.autoGas);
   document.body.classList.toggle('tilt-live',controlSettings.type==='tilt'&&tiltLive);
+  var autoGasChk=$('autoGas');if(autoGasChk)autoGasChk.checked=!!controlSettings.autoGas;
+  var autoGasRow=$('autoGasRow');if(autoGasRow)autoGasRow.hidden=!IS_TOUCH;
   setSeg('ctrlType',controlSettings.type);
   setSeg('ctrlSize',controlSettings.size);
   setSeg('ctrlLayout',controlSettings.layout);
@@ -2232,6 +2248,8 @@ bindSeg('ctrlSize','size');
 bindSeg('ctrlLayout','layout');
 var tiltInv=$('tiltInvert');
 if(tiltInv)tiltInv.addEventListener('change',function(){controlSettings.invert=!!tiltInv.checked;saveControls();tiltTarget=0;applyControlSettings()});
+var autoGasChk=$('autoGas');
+if(autoGasChk)autoGasChk.addEventListener('change',function(){controlSettings.autoGas=!!autoGasChk.checked;saveControls();applyControlSettings()});
 var tiltLevelBtn=$('tiltLevel');
 if(tiltLevelBtn)tiltLevelBtn.addEventListener('click',function(){
   SFX.click();
