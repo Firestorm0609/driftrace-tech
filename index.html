@@ -640,8 +640,8 @@ function sizeScene(){
   /* The road is measured in car widths, not world units: two cars have to
      fit side by side whether the window is 1280 or 1920 wide. The car row
      sits at 0.80RH with the horizon at 0.17RH, so the half-width that reads
-     as 1.70 cars up there is CARW*1.70*CAMH/(0.97*RH). */
-  ROADH=Math.round(CARW*1.70*CAMH/(0.97*RH));
+     as 1.80 cars up there is CARW*1.80*CAMH/(0.97*RH). */
+  ROADH=Math.round(CARW*1.80*CAMH/(0.97*RH));
   /* Camera distance follows screen height so the car always sits on the
      same row, from a short landscape strip to a tall desktop window. */
   CARD=Math.round(FOC*520/(0.97*Math.max(100,RH)));
