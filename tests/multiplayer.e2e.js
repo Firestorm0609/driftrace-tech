@@ -61,10 +61,14 @@ function fail(message) {
 
     await Promise.all(pages.map(async (page, i) => {
       await page.bringToFront();
-      await page.keyboard.down('ArrowUp');
+      await page.locator('[data-k="u"]').dispatchEvent('pointerdown', {
+        pointerId: 100 + i, pointerType: 'touch', isPrimary: true, buttons: 1
+      });
     }));
     await new Promise(resolve => setTimeout(resolve, 900));
-    await Promise.all(pages.map(page => page.keyboard.up('ArrowUp')));
+    await Promise.all(pages.map((page, i) => page.locator('[data-k="u"]').dispatchEvent('pointerup', {
+      pointerId: 100 + i, pointerType: 'touch', isPrimary: true
+    })));
 
     const states = await Promise.all(pages.map(p => p.evaluate(() => window.__mpStats)));
     for (let i = 0; i < states.length; i++) {
