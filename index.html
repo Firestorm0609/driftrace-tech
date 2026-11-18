@@ -135,6 +135,7 @@ html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%}
 .tc-btn.on{border-color:var(--neon);background:#ccff0029;color:#eaffb0}
 .tc-gas{width:calc(var(--pad-gas)*var(--pad-scale));height:calc(var(--pad-gas)*var(--pad-scale));font-size:calc(var(--pad-gas-fs)*var(--pad-scale));letter-spacing:.1em;border-color:var(--neon)}
 .tc-brake{width:calc(var(--pad-brake)*var(--pad-scale));height:calc(var(--pad-brake)*var(--pad-scale));font-size:calc(var(--pad-brake-fs)*var(--pad-scale));opacity:.9}
+.tc-handbrake{width:calc(var(--pad-brake)*var(--pad-scale));height:calc(var(--pad-brake)*var(--pad-scale));font-size:calc(var(--pad-brake-fs)*var(--pad-scale));opacity:.9;color:#ffd23f;border-color:#ffd23f80;letter-spacing:.04em}
 body[data-pad-size="s"] .touch{--pad-scale:.86}
 body[data-pad-size="l"] .touch{--pad-scale:1.16}
 body[data-pad-size="xl"] .touch{--pad-scale:1.3}
@@ -206,6 +207,7 @@ body.tilt-live[data-pad-layout="left"] .touch,body[data-control-type="swipe"][da
 }
 /* keep the pad inside narrow screens even at the largest button size */
 @media (max-width:400px){.touch{padding-left:6px;padding-right:6px}.touch-group{gap:6px}}
+@media (max-width:360px){.touch{--pad-btn:56px;--pad-gas:64px;--pad-brake:44px;--pad-fs:18px;--pad-gas-fs:10px;--pad-brake-fs:8px;padding-left:4px;padding-right:4px;gap:4px}.touch-group{gap:4px}}
 @media (max-width:340px){body[data-pad-size="l"] .touch{--pad-scale:1.02}body[data-pad-size="xl"] .touch{--pad-scale:1.06}.touch{padding-left:4px;padding-right:4px}.touch-group{gap:4px}}
 @keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
 /* -- TITLE / MODE / MATCHMAKING --
@@ -283,6 +285,7 @@ body.tilt-live[data-pad-layout="left"] .touch,body[data-control-type="swipe"][da
       </div>
       <div class="touch-group pedals">
         <button class="tc-btn tc-brake" type="button" data-k="d" aria-label="Brake">BRK</button>
+        <button class="tc-btn tc-handbrake" type="button" data-k="hb" aria-label="Handbrake">HB</button>
         <button class="tc-btn tc-gas" type="button" data-k="u" aria-label="Accelerate">GAS</button>
       </div>
     </div>
@@ -688,7 +691,7 @@ var dmgFlash=0,runTopSpd=0,finishKind='';
 var misfireT=0,misfireCut=0,misfirePuff=false,impactJolt=0;
 var runStartZ=0;
 var playerCar=null,rivalCar=null,cars=[];
-var keys={l:0,r:0,u:0,d:0},steerV=0,offRoad=false;
+var keys={l:0,r:0,u:0,d:0,hb:0},steerV=0,offRoad=false;
 var IS_TOUCH=false;
 try{IS_TOUCH=(window.matchMedia&&window.matchMedia('(pointer:coarse)').matches)||(navigator.maxTouchPoints||0)>0||('ontouchstart' in window)}catch(e){}
 /* -- CONTROL SETTINGS --
@@ -711,12 +714,13 @@ var swipeId=null,swipeStartX=0,swipeSteer=0;
 /* The keyboard and the on-screen pad can be held at the same time, so each
    source keeps its own bits and `keys` stays the merged view the physics,
    the HUD and the network transport already read. */
-var keyHeld={l:0,r:0,u:0,d:0},touchHeld={l:0,r:0,u:0,d:0};
+var keyHeld={l:0,r:0,u:0,d:0,hb:0},touchHeld={l:0,r:0,u:0,d:0,hb:0};
 function syncKeys(){
   keys.l=(keyHeld.l||touchHeld.l)?1:0;
   keys.r=(keyHeld.r||touchHeld.r)?1:0;
   keys.u=(keyHeld.u||touchHeld.u)?1:0;
   keys.d=(keyHeld.d||touchHeld.d)?1:0;
+  keys.hb=(keyHeld.hb||touchHeld.hb)?1:0;
 }
 var ONG=0.63;   /* drift past this and a wheel is on the grass */
 
@@ -997,10 +1001,16 @@ cars=[playerCar,rivalCar];
    The race only calls this small interface. A local race drives the AI
    car; a replay feeds recorded snapshots; a socket feeds the latest state
    from another browser. Swapping transports does not change the game loop. */
-function keyboardInput(k){return{l:k.l?1:0,r:k.r?1:0,u:k.u?1:0,d:k.d?1:0}}
+function keyboardInput(k){return{l:k.l?1:0,r:k.r?1:0,u:k.u?1:0,d:k.d?1:0,hb:k.hb?1:0}}
 function applyRemoteState(car,s){
   if(!s)return;
-  car.z=+s.z;car.x=(s.x===undefined?roadX(car.z)+ (+s.drift||0)*ROADH:+s.x);
+  car.z=+s.z;
+  /* PVP cars are placed in the local road's lane coordinates. The server's
+     world width and the browser's responsive road width differ, so the
+     normalized drift is the common unit both views can agree on. */
+  if(s.drift!==undefined)car.x=roadX(car.z)+(+s.drift||0)*ROADH;
+  else if(s.x!==undefined)car.x=+s.x;
+  else car.x=roadX(car.z);
   car.spd=+s.spd||0;car.heading=s.heading===undefined?0:+s.heading;
   car.vx=s.vx===undefined?(+s.driftV||0)*ROADH:+s.vx;
   car.vz=s.vz===undefined?car.spd:+s.vz;
@@ -1133,7 +1143,7 @@ function damageBias(marks){var s=damageSides(marks);return s.r-s.l;}
 /* The car is a stack of flat slices pushed back into the screen: every
    surface is a trapezoid, and the two white stripes shrink with it, so
    the rear face, boot deck, rear screen and roof all recede together. */
-function drawCar(cx,cy,tilt,lit,dmg){
+function drawCar(cx,cy,tilt,lit,dmg,front){
   var W=CARW*0.5,brakingLamp=lit===undefined?braking:lit;
   var yBump=-CARW*0.18, yPanel=-CARW*0.33, yDeck=-CARW*0.46,
       yGlass=-CARW*0.64, yRoof=-CARW*0.79;
@@ -1183,23 +1193,42 @@ function drawCar(cx,cy,tilt,lit,dmg){
   var ty=Math.round(yBump+CARW*0.045);
   var tlw=Math.max(4,Math.round(W*0.36)),tlh=Math.max(3,Math.round(CARW*0.075));
   var tlL=Math.round(-W*0.90),tlR=Math.round(W*0.90-tlw);
-  if(brakingLamp){
-    /* the lamp blooms past the lens so the car reads as braking at speed */
-    sg.fillStyle='rgba(255,48,20,.20)';
-    sg.fillRect(tlL-2,ty-2,tlw+4,tlh+4);
-    sg.fillRect(tlR-2,ty-2,tlw+4,tlh+4);
+  if(front){
+    /* headlights and a dark grille read as the nose of the car */
+    if(brakingLamp){
+      sg.fillStyle='rgba(255,248,190,.18)';
+      sg.fillRect(tlL-2,ty-2,tlw+4,tlh+4);
+      sg.fillRect(tlR-2,ty-2,tlw+4,tlh+4);
+    }
+    sg.fillStyle=brakingLamp?'#fffbe0':'#e8e2c2';
+    sg.fillRect(tlL,ty,tlw,tlh);
+    sg.fillRect(tlR,ty,tlw,tlh);
+    sg.fillStyle='#ffffff';
+    sg.fillRect(tlL,ty,tlw,2);
+    sg.fillRect(tlR,ty,tlw,2);
+    sg.fillStyle='#0a0a10';
+    sg.fillRect(Math.round(-W*0.30),Math.round(yBump+CARW*0.025),Math.round(W*0.60),Math.max(3,Math.round(CARW*0.075)));
+    sg.fillStyle='#252532';
+    for(var gf=-2;gf<=2;gf++)sg.fillRect(Math.round(gf*W*0.10),Math.round(yBump+CARW*0.030),1,Math.max(2,Math.round(CARW*0.045)));
+  }else{
+    if(brakingLamp){
+      /* the lamp blooms past the lens so the car reads as braking at speed */
+      sg.fillStyle='rgba(255,48,20,.20)';
+      sg.fillRect(tlL-2,ty-2,tlw+4,tlh+4);
+      sg.fillRect(tlR-2,ty-2,tlw+4,tlh+4);
+    }
+    sg.fillStyle=brakingLamp?'#ff2715':'#b52a24';
+    sg.fillRect(tlL,ty,tlw,tlh);
+    sg.fillRect(tlR,ty,tlw,tlh);
+    sg.fillStyle=brakingLamp?'#ffc9bd':'#ff6a4a';
+    sg.fillRect(tlL,ty,tlw,2);
+    sg.fillRect(tlR,ty,tlw,2);
+    sg.fillStyle='#d8d2b4';
+    sg.fillRect(Math.round(-W*0.22),Math.round(yBump+2),Math.round(W*0.44),Math.max(3,Math.round(CARW*0.075)));
+    sg.fillStyle='#0a0a10';
+    sg.fillRect(Math.round(-W*0.18),Math.round(-CARW*0.075),Math.round(CARW*0.075),Math.round(CARW*0.05));
+    sg.fillRect(Math.round(W*0.105),Math.round(-CARW*0.075),Math.round(CARW*0.075),Math.round(CARW*0.05));
   }
-  sg.fillStyle=brakingLamp?'#ff2715':'#b52a24';
-  sg.fillRect(tlL,ty,tlw,tlh);
-  sg.fillRect(tlR,ty,tlw,tlh);
-  sg.fillStyle=brakingLamp?'#ffc9bd':'#ff6a4a';
-  sg.fillRect(tlL,ty,tlw,2);
-  sg.fillRect(tlR,ty,tlw,2);
-  sg.fillStyle='#d8d2b4';
-  sg.fillRect(Math.round(-W*0.22),Math.round(yBump+2),Math.round(W*0.44),Math.max(3,Math.round(CARW*0.075)));
-  sg.fillStyle='#0a0a10';
-  sg.fillRect(Math.round(-W*0.18),Math.round(-CARW*0.075),Math.round(CARW*0.075),Math.round(CARW*0.05));
-  sg.fillRect(Math.round(W*0.105),Math.round(-CARW*0.075),Math.round(CARW*0.075),Math.round(CARW*0.05));
 
   /* boot deck */
   slab(W*0.96,yPanel,W*0.90,yDeck,carPal.deck);
@@ -1207,14 +1236,16 @@ function drawCar(cx,cy,tilt,lit,dmg){
   sg.fillStyle='rgba(170,206,250,.30)';
   sg.fillRect(Math.round(-W*0.90),Math.round(yDeck),Math.round(W*1.80),1);
 
-  /* rear wing: a low bar on the boot, not a pair of horns */
-  var ww=W*1.05,wt=Math.max(3,Math.round(CARW*0.065)),ew=Math.max(2,Math.round(CARW*0.05));
-  sg.fillStyle='#0b1220';
-  sg.fillRect(Math.round(-ww),Math.round(yDeck+wt*0.5),Math.round(ww*2),wt);
-  sg.fillStyle=carPal.wing;
-  sg.fillRect(Math.round(-ww),Math.round(yDeck+wt*0.5),Math.round(ww*2),1);
-  sg.fillRect(Math.round(-ww),Math.round(yDeck-wt*0.3),ew,Math.round(wt*1.6));
-  sg.fillRect(Math.round(ww-ew),Math.round(yDeck-wt*0.3),ew,Math.round(wt*1.6));
+  /* the rear wing belongs to the tail; it is hidden from the nose */
+  if(!front){
+    var ww=W*1.05,wt=Math.max(3,Math.round(CARW*0.065)),ew=Math.max(2,Math.round(CARW*0.05));
+    sg.fillStyle='#0b1220';
+    sg.fillRect(Math.round(-ww),Math.round(yDeck+wt*0.5),Math.round(ww*2),wt);
+    sg.fillStyle=carPal.wing;
+    sg.fillRect(Math.round(-ww),Math.round(yDeck+wt*0.5),Math.round(ww*2),1);
+    sg.fillRect(Math.round(-ww),Math.round(yDeck-wt*0.3),ew,Math.round(wt*1.6));
+    sg.fillRect(Math.round(ww-ew),Math.round(yDeck-wt*0.3),ew,Math.round(wt*1.6));
+  }
 
   /* rear screen, inset between the C-pillars */
   slab(W*0.90,yDeck,W*0.76,yGlass,carPal.surround);
@@ -1440,13 +1471,69 @@ function carProjection(car,HZY){
   if(p.y>RH+90*sc||p.x<-RW*.9||p.x>RW*1.9)return null;
   return {x:p.x,y:p.y,sc:sc,rz:p.f};
 }
-function drawOpponent(car,HZY){
+/* A side-on silhouette for the moments when the rival is broadside to
+   the chase camera. It is built from the same palette as the rear sprite,
+   so a spinning car changes pose instead of always looking tail-on. */
+function drawCarSide(cx,cy,tilt,lit,dmg,dir){
+  var f=dir<0?-1:1,L=CARW*1.34,H=CARW*0.50;
+  var xR=-f*L*.52,xF=f*L*.52;
+  sg.fillStyle='rgba(14,30,14,.20)';
+  sg.fillRect(Math.round(cx-L*.54),Math.round(cy),Math.round(L*1.08),4);
+  sg.fillStyle='rgba(14,30,14,.10)';
+  sg.fillRect(Math.round(cx-L*.44),Math.round(cy+4),Math.round(L*.88),3);
+  sg.save();sg.translate(cx,cy);sg.rotate(tilt);
+  function poly(p,col){
+    sg.fillStyle=col;sg.beginPath();
+    sg.moveTo(Math.round(p[0]),Math.round(p[1]));
+    for(var j=2;j<p.length;j+=2)sg.lineTo(Math.round(p[j]),Math.round(p[j+1]));
+    sg.closePath();sg.fill();
+  }
+  /* two wheels, the near one over the body edge */
+  var ww=Math.max(4,Math.round(L*.19)),wh=Math.max(4,Math.round(H*.30));
+  sg.fillStyle='#08080c';
+  sg.fillRect(Math.round(xR+L*.16-ww*.5),Math.round(-wh*.18),ww,wh);
+  sg.fillRect(Math.round(xF-L*.16-ww*.5),Math.round(-wh*.18),ww,wh);
+  sg.fillStyle='#3b3b46';
+  sg.fillRect(Math.round(xR+L*.16-ww*.22),Math.round(-wh*.06),Math.max(1,Math.round(ww*.44)),Math.max(1,Math.round(wh*.34)));
+  sg.fillRect(Math.round(xF-L*.16-ww*.22),Math.round(-wh*.06),Math.max(1,Math.round(ww*.44)),Math.max(1,Math.round(wh*.34)));
+  /* lower body, hood and roof */
+  poly([xR,-H*.05, xF,-H*.05, xF,-H*.30, xR+f*L*.08,-H*.34],carPal.panel);
+  poly([xF-f*L*.20,-H*.30, xF,-H*.26, xF,-H*.05, xF-f*L*.12,-H*.05],carPal.deck);
+  poly([xR+f*L*.15,-H*.33, xF-f*L*.22,-H*.33, xF-f*L*.33,-H*.58, xR+f*L*.22,-H*.58],carPal.roofA);
+  poly([xR+f*L*.20,-H*.35, xF-f*L*.27,-H*.35, xF-f*L*.34,-H*.53, xR+f*L*.25,-H*.53],'#101c30');
+  /* side stripe and shoulder highlight */
+  sg.fillStyle='#eef2f6';
+  sg.fillRect(Math.round(xR+f*L*.06),Math.round(-H*.23),Math.max(2,Math.round(L*.52)),Math.max(1,Math.round(CARW*.06)));
+  sg.fillStyle='rgba(196,222,248,.30)';
+  sg.fillRect(Math.round(xR+f*L*.05),Math.round(-H*.31),Math.max(1,Math.round(L*.88)),1);
+  /* door seam and sill */
+  sg.fillStyle='rgba(8,20,50,.35)';
+  sg.fillRect(Math.round(f*L*.02),Math.round(-H*.32),Math.max(1,Math.round(CARW*.025)),Math.max(2,Math.round(H*.25)));
+  sg.fillRect(Math.round(xR+f*L*.04),Math.round(-H*.07),Math.max(1,Math.round(L*.90)),Math.max(1,Math.round(CARW*.03)));
+  /* lamps: headlight at the nose, tail lamp at the boot */
+  sg.fillStyle='#fffbe0';
+  sg.fillRect(Math.round(xF-f*L*.055),Math.round(-H*.24),Math.max(2,Math.round(L*.055)),Math.max(2,Math.round(H*.10)));
+  sg.fillStyle=lit?'#ff2715':'#b52a24';
+  sg.fillRect(Math.round(xR+f*L*.035),Math.round(-H*.24),Math.max(2,Math.round(L*.055)),Math.max(2,Math.round(H*.10)));
+  /* damage scuffs read as dark chips along the flank */
+  for(var di=0;di<(dmg||[]).length;di++){
+    var dm=dmg[di];
+    sg.fillStyle='rgba(5,8,13,.72)';
+    sg.fillRect(Math.round(xR+f*L*(0.18+((dm.x/CARW)+0.5)*0.55)),Math.round(-H*(0.10+((dm.y/CARW)+0.5)*0.28)),Math.max(1,Math.round(dm.w*.8)),Math.max(1,Math.round(dm.h*.8)));
+  }
+  sg.restore();
+}
+
+function drawOpponent(car,HZY,rel){
   var v=carProjection(car,HZY);
   if(!v)return;
+  rel=rel||0;
+  var sn=Math.sin(rel),cs=Math.cos(rel);
   carPal=car.pal;
   sg.save();
   sg.translate(v.x,v.y);sg.scale(v.sc,v.sc);
-  drawCar(0,0,carTilt(car),car.brake,car.damage);
+  if(Math.abs(sn)>0.55)drawCarSide(0,0,carTilt(car),car.brake,car.damage,sn);
+  else drawCar(0,0,carTilt(car),car.brake,car.damage,cs<0);
   sg.restore();
   carPal=CARP.player;
 }
@@ -1693,7 +1780,7 @@ function stepVehicle(car,input,dt,raceT){
   var rx=Math.cos(car.heading),rz=-Math.sin(car.heading);
   var fwd=car.vx*fx+car.vz*fz,speedAbs=Math.abs(fwd);
   var speedMag=Math.sqrt(car.vx*car.vx+car.vz*car.vz);
-  var handbrake=!!input.d&&speedMag>120;
+  var handbrake=!!input.hb||(!!input.d&&speedMag>120);
   var yaw=car.steer*1.8*Math.min(1,speedMag/230);
   if(offRoadHere)yaw*=0.72;
   if(handbrake)yaw*=1.45;
@@ -1735,7 +1822,7 @@ function stepVehicle(car,input,dt,raceT){
   car.spd=fwd;
   car.drift=(car.x-roadX(car.z))/ROADH;
   car.driftV=lat/ROADH;
-  car.brake=!!input.d&&fwd>=-0.5;
+  car.brake=(!!input.d&&fwd>=-0.5)||handbrake;
   if(car.z>=finishZ&&!car.done){car.done=true;car.finishT=raceT;}
 }
 function stepAICar(car,dt){
@@ -1843,7 +1930,7 @@ function stepRace(dt,inputs){
   simTime+=dt;
   var raw=inputs||keys;
   /* copy the input so the auto-throttle never sticks in the shared key map */
-  var cmd={l:raw.l?1:0,r:raw.r?1:0,u:raw.u?1:0,d:raw.d?1:0};
+  var cmd={l:raw.l?1:0,r:raw.r?1:0,u:raw.u?1:0,d:raw.d?1:0,hb:raw.hb?1:0};
   /* auto gas keeps the throttle pinned unless the brake is held, so a
      thumb is free for steering; keyboard and desktop stay manual */
   if(IS_TOUCH&&controlSettings.autoGas&&mode==='run'&&!cmd.d)cmd.u=1;
@@ -1881,7 +1968,7 @@ function stepRace(dt,inputs){
       runT+=dt;
       var analog=controlSettings.type==='tilt'?tiltSteer:(controlSettings.type==='swipe'?swipeSteer:0);
       var sIn=Math.max(-1,Math.min(1,((cmd.l?-1:0)+(cmd.r?1:0))+analog));
-      stepVehicle(playerCar,{l:cmd.l,r:cmd.r,u:cmd.u,d:cmd.d,steer:sIn},dt,runT);
+      stepVehicle(playerCar,{l:cmd.l,r:cmd.r,u:cmd.u,d:cmd.d,hb:cmd.hb,steer:sIn},dt,runT);
       if(Math.abs(playerCar.spd)>runTopSpd)runTopSpd=Math.abs(playerCar.spd);
       if(runT>=RUNTIME&&raceTransport.kind!=='socket')finishRun('timeup');
     }else{
@@ -2054,10 +2141,10 @@ function drawRace(alpha,ms,dt){
   var i;
   nextPuff-=dt;
   if(pVis&&mode==='run'&&Math.abs(SPD)>160&&
-     (Math.abs(pdriftV)>0.16||keys.d||offRoad)){
+     (Math.abs(pdriftV)>0.16||keys.d||keys.hb||offRoad)){
     if(nextPuff<=0&&smoke.length<92){
       nextPuff=.024+Math.random()*.014;
-      var smokePower=Math.min(1,.35+Math.abs(pdriftV)*.95+(offRoad?.25:0)+(keys.d?.25:0));
+      var smokePower=Math.min(1,.35+Math.abs(pdriftV)*.95+(offRoad?.25:0)+((keys.d||keys.hb)?.25:0));
       for(i=0;i<2;i++){
         smoke.push({x:pVis.x+(i?1:-1)*CARW*0.42*pVis.sc,y:pVis.y-2,
                     vx:(i?1:-1)*(12+24*smokePower)+(Math.random()*8-4),
@@ -2090,7 +2177,7 @@ function drawRace(alpha,ms,dt){
   drawFumes(dt,HZY,{x:px,z:pz,spd:pspd,damage:pDamage});
   var rc={x:rx,z:rz,heading:rh,spd:rspd,drift:rdrift,driftV:rdriftV,steer:rsteer,
     brake:rivalCar.brake,damage:rivalCar.damage,pal:rivalCar.pal,isPlayer:false};
-  if(mode!=='idle'&&rVis)drawOpponent(rc,HZY);
+  if(mode!=='idle'&&rVis)drawOpponent(rc,HZY,wrapAngle(rh-camYaw));
   if(pVis){
     var dmgVibe=dmgRatio>.25?Math.sin(ms/37)*(0.18+0.75*dmgRatio):0;
     var misfireVibe=misfireCut>0?Math.sin(ms/15)*(0.9+1.3*dmgRatio):0;
@@ -2133,7 +2220,7 @@ if(sg)requestAnimationFrame(render);
 
 
 /* ── DRIVING CONTROLS ── */
-var keyMap={ArrowLeft:'l',KeyA:'l',ArrowRight:'r',KeyD:'r',ArrowUp:'u',KeyW:'u',ArrowDown:'d',KeyS:'d'};
+var keyMap={ArrowLeft:'l',KeyA:'l',ArrowRight:'r',KeyD:'r',ArrowUp:'u',KeyW:'u',ArrowDown:'d',KeyS:'d',ShiftLeft:'hb',ShiftRight:'hb'};
 document.addEventListener('keydown',function(e){
   var k=keyMap[e.code];
   if(k){keyHeld[k]=1;syncKeys();e.preventDefault();return;}
@@ -2145,8 +2232,8 @@ document.addEventListener('keydown',function(e){
 });
 document.addEventListener('keyup',function(e){var k=keyMap[e.code];if(k){keyHeld[k]=0;syncKeys();e.preventDefault();}});
 function clearHeld(){
-  keyHeld.l=keyHeld.r=keyHeld.u=keyHeld.d=0;
-  touchHeld.l=touchHeld.r=touchHeld.u=touchHeld.d=0;
+  keyHeld.l=keyHeld.r=keyHeld.u=keyHeld.d=keyHeld.hb=0;
+  touchHeld.l=touchHeld.r=touchHeld.u=touchHeld.d=touchHeld.hb=0;
   tiltTarget=0;tiltSteer=0;swipeId=null;swipeSteer=0;
   syncKeys();steerV=0;
   var tb=document.querySelectorAll('.tc-btn');
@@ -2241,7 +2328,7 @@ function applyControlSettings(){
   }else if(controlSettings.type==='swipe'){
     hint.textContent='Touch the track and slide left or right to steer. Gas and brake stay on the right.';
   }else{
-    hint.textContent='Steer with the on-screen buttons. Size and position are remembered.';
+    hint.textContent='Steer with the on-screen buttons. HB is the handbrake: hold it with gas to slide. Size and position are remembered.';
   }
 }
 function tiltValue(e){
