@@ -33,6 +33,26 @@ button{cursor:pointer}
    taller than the panel, and the clipped strip at the bottom is the car */
 .trackside{border:1px solid var(--line);height:100%;width:100%;min-width:0;display:grid;grid-template-rows:1fr;overflow:hidden;position:relative}
 .trackside canvas{position:absolute;inset:0;width:100%;height:100%;display:block;image-rendering:pixelated;background:#0a2233}
+/* -- RACE HUD --
+   DOM rather than canvas so phone text stays sharp at any pixel scale. */
+.hud{position:absolute;inset:0;z-index:10;display:none;pointer-events:none;padding:calc(8px + env(safe-area-inset-top,0px)) calc(10px + env(safe-area-inset-right,0px)) 0 calc(10px + env(safe-area-inset-left,0px));font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.hud:before{content:'';position:absolute;left:0;right:0;top:0;height:112px;background:linear-gradient(180deg,#000000e0 0%,#0000009e 58%,#00000000 100%);pointer-events:none;z-index:-1}
+.hud.on{display:block}
+.hud-row{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.hud-stat span{display:block;font-size:9px;letter-spacing:.18em;opacity:.72;margin-bottom:3px}
+.hud-stat b{display:block;font-size:23px;line-height:1;font-weight:900;color:#f2ffdc;font-variant-numeric:tabular-nums;text-shadow:0 1px 3px #000}
+.hud-stat b em{font-style:normal}
+.hud-stat b small{font-size:9px;letter-spacing:.08em;opacity:.72;font-weight:700}
+.hud-right{text-align:right}
+.hud-pos{align-self:center;padding:4px 10px;border:1px solid var(--line);background:#000000c4;font-size:18px;font-weight:900;letter-spacing:.08em;color:var(--neon)}
+.hud-progress{position:relative;height:4px;margin-top:8px;background:#00000080;border:1px solid #ffffff24}
+.hud-progress i{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--neon)}
+.hud-progress span{position:absolute;top:-2px;width:3px;height:8px;background:#ff4757;transform:translateX(-1px)}
+.hud-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;font-size:10px;letter-spacing:.1em;text-shadow:0 1px 2px #000}
+.hud-damage{display:flex;align-items:center;gap:6px;color:#eaf6d2;white-space:nowrap}
+.hud-damage i{display:block;width:56px;height:5px;border:1px solid #ffffff2e;background:#00000080}
+.hud-damage i b{display:block;width:0;height:100%;background:var(--neon)}
+.hud-gear{color:var(--neon);font-weight:900;white-space:nowrap}
 .racehead{width:100%;border-bottom:1px solid var(--line);display:grid;grid-template-columns:repeat(10,minmax(0,1fr))}
 .lanehead{min-width:0;border-right:1px solid var(--dim);text-align:center;padding:4px 0;font-size:clamp(3px,.65vw,5px);overflow:hidden;white-space:nowrap}
 .lanehead b{display:block;font-size:clamp(6px,1vw,8px);margin-bottom:1px}
@@ -121,6 +141,11 @@ html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%}
   .top .muted{display:none}
   .brand{font-size:13px;letter-spacing:.18em}
   .sound-btn{padding:0 10px;min-width:44px;min-height:44px;font-size:16px}
+  .hud{padding-top:calc(6px + env(safe-area-inset-top,0px))}
+  .hud-stat b{font-size:23px}
+  .hud-pos{font-size:17px;padding:4px 9px}
+  .hud-stat span{font-size:9px}
+  .hud-meta{font-size:10px}
   .world{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:0;padding:0}
   .trackside{grid-template-rows:1fr;border:0;min-height:0}
   .lanehead{font-size:6px;padding:5px 0}
@@ -149,6 +174,14 @@ html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%}
   .top .muted{display:none}
   .brand{font-size:12px}
   .sound-btn{padding:0 9px;min-width:44px;min-height:44px;font-size:15px}
+  .hud{padding-top:calc(4px + env(safe-area-inset-top,0px))}
+  .hud:before{height:72px}
+  .hud-stat b{font-size:20px}
+  .hud-stat span{font-size:8px;margin-bottom:2px}
+  .hud-pos{font-size:15px;padding:3px 8px}
+  .hud-progress{margin-top:5px}
+  .hud-meta{margin-top:5px;font-size:9px}
+  .hud-damage i{width:44px}
   .world{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:0;padding:0}
   .trackside{grid-template-rows:1fr;border:0;min-height:0}
   .tc-btn{width:56px;height:56px;font-size:18px}
@@ -193,6 +226,18 @@ html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%}
 <main class="world">
   <section class="trackside">
     <canvas id="scene"></canvas>
+    <div class="hud" id="hud" aria-hidden="true">
+      <div class="hud-row">
+        <div class="hud-stat"><span>TIME</span><b id="hudTime">0:00</b></div>
+        <div class="hud-pos" id="hudPos">P2</div>
+        <div class="hud-stat hud-right"><span>SPEED</span><b><em id="hudSpeed">0</em> <small>KM/H</small></b></div>
+      </div>
+      <div class="hud-progress"><i id="hudPlayerBar"></i><span id="hudRivalMark"></span></div>
+      <div class="hud-meta">
+        <span class="hud-damage"><em id="hudDamage">DMG 0%</em><i><b id="hudDamageBar"></b></i></span>
+        <span class="hud-gear" id="hudGear">GEAR 1</span>
+      </div>
+    </div>
     <div class="touch" id="touch">
       <div class="touch-group">
         <button class="tc-btn" type="button" data-k="l" aria-label="Steer left">&#9664;</button>
@@ -611,22 +656,7 @@ function drawHud(){
     }
     return;
   }
-  shadeText('TIME '+fmtT(mode==='run'?runT:runEnd),4,4,(mode==='run'&&runT>50)?'#ff8a4a':'#eaf6d2');
-  var p1=(camZ+CARD)>=rivalCar.z;
-  shadeText(p1?'P1':'P2',4,25,p1?'#ccff00':'#ff6a4a');
-  var kmh=Math.round(SPD/MAXSPD*HUDTOP);
-  shadeText((SPD<-1?'R '+Math.abs(kmh):kmh)+' KM/H',RW-4,4,offRoad?'#ffb27a':'#ccff00','right');
-  var gl=SPD<-1?'R':String(gearAt(Math.abs(SPD)/MAXSPD).g);
-  shadeText('GEAR '+gl,RW-4,25,gearJolt>0.25?'#ffffff':'#a9c98c','right');
-  var dmgPct=Math.round(Math.min(1,pDamage.length/14)*100);
-  var dmgBias=damageBias(pDamage),pullTxt=dmgBias>0?'R':(dmgBias<0?'L':'');
-  shadeText('DMG '+dmgPct+'%'+(pullTxt?' '+pullTxt:''),4,38,dmgFlash>0?'#ff8a4a':(dmgPct>0?'#ffb27a':'#718663'));
-  if(mode==='run'&&misfireCut>0)shadeText('MISFIRE',4,51,'#ff6a4a');
-  var pw=RW-8,prog=Math.max(0,Math.min(1,1-left/RUNLEN));
-  sg.fillStyle='rgba(6,12,4,.55)';sg.fillRect(4,16,pw,3);
-  sg.fillStyle=offRoad?'#ff7a3d':'#ccff00';sg.fillRect(4,16,Math.max(1,Math.round(pw*prog)),3);
-  var rp=Math.max(0,Math.min(1,(rivalCar.z-runStartZ)/RUNLEN));
-  sg.fillStyle='#ff4757';sg.fillRect(4+Math.round(pw*rp)-1,15,3,5);
+  if(mode==='run'&&misfireCut>0)shadeText('MISFIRE',4,Math.round(RH*0.30),'#ff6a4a');
   if(mode==='countdown'){
     bigText(String(Math.ceil(countT)),RH*0.33,'#eaf6d2');
     shadeText(IS_TOUCH?'HOLD GAS TO LAUNCH':'HOLD UP TO LAUNCH',RW*0.5,RH*0.33+22,'#a9c98c','center');
@@ -637,6 +667,39 @@ function drawHud(){
   if(mode==='done')shadeText((raceWon?'P1  YOU WIN':'P2  RIVAL WINS')+'  '+fmtT(runEnd),RW*0.5,RH*0.40,raceWon?'#ccff00':'#ff7a3d','center');
   if(mode==='timeup')shadeText('TIME UP',RW*0.5,RH*0.40,'#ff7a3d','center');
   if(mode==='done'||mode==='timeup')shadeText(MP_ROOM?'REMATCH INCOMING':(IS_TOUCH?'TAP GAS TO RUN AGAIN':'PRESS ENTER TO RUN AGAIN'),RW*0.5,RH*0.40+13,'#a9c98c','center');
+}
+/* -- DOM HUD --
+   Sharp type at every pixel scale, laid out for a phone first. The canvas
+   keeps only the big centre messages (countdown, start, finish). */
+var hudEl=$('hud'),hudTime=$('hudTime'),hudPos=$('hudPos'),hudSpeed=$('hudSpeed'),
+    hudGear=$('hudGear'),hudDamage=$('hudDamage'),hudDamageBar=$('hudDamageBar'),
+    hudPlayerBar=$('hudPlayerBar'),hudRivalMark=$('hudRivalMark');
+function hudText(el,txt){if(el&&el.textContent!==txt)el.textContent=txt}
+function updateHud(){
+  if(!hudEl)return;
+  var active=mode==='countdown'||mode==='run'||mode==='done'||mode==='timeup';
+  hudEl.classList.toggle('on',active);
+  if(!active)return;
+  hudText(hudTime,fmtT(mode==='countdown'?0:(mode==='run'?runT:runEnd)));
+  var p1=mode==='done'?raceWon:((camZ+CARD)>=rivalCar.z);
+  hudText(hudPos,p1?'P1':'P2');
+  hudPos.style.color=p1?'var(--neon)':'#ff6a4a';
+  hudPos.style.borderColor=p1?'var(--line)':'#ff475766';
+  var kmh=Math.round(SPD/MAXSPD*HUDTOP);
+  hudText(hudSpeed,SPD<-1?'R '+Math.abs(kmh):String(kmh));
+  hudSpeed.style.color=offRoad?'#ffb27a':'#f2ffdc';
+  hudText(hudGear,'GEAR '+(SPD<-1?'R':gearAt(Math.abs(SPD)/MAXSPD).g));
+  hudGear.style.color=gearJolt>0.25?'#ffffff':'var(--neon)';
+  var dmg=Math.min(100,Math.round(pDamage.length/14*100)),bias=damageBias(pDamage);
+  var dmgCol=dmg>70?'#ff6a4a':(dmg>35?'#ffb27a':'#eaf6d2');
+  hudText(hudDamage,'DMG '+dmg+'%'+(bias>0?' R':(bias<0?' L':'')));
+  hudDamage.style.color=dmgCol;
+  hudDamageBar.style.width=dmg+'%';
+  hudDamageBar.style.background=dmg>70?'#ff6a4a':(dmg>35?'#ffb27a':'var(--neon)');
+  var prog=Math.max(0,Math.min(1,1-(finishZ-camZ-CARD)/RUNLEN));
+  hudPlayerBar.style.width=(prog*100).toFixed(2)+'%';
+  var rp=Math.max(0,Math.min(1,(rivalCar.z-runStartZ)/RUNLEN));
+  hudRivalMark.style.left=(rp*100).toFixed(2)+'%';
 }
 function startRun(opts){
   opts=opts||{};
@@ -1292,7 +1355,10 @@ function hullsTouch(a,b,pad){
 }
 function cameraViewX(){
   var sCar=camZ+CARD;
-  return roadX(camZ)+0.90*(roadX(sCar)-roadX(camZ))+camKickX;
+  /* Keep most of the car's lateral line centred. The old view followed the
+     road centre just ahead, so a car drifting wide through a bend slid to
+     the edge of the screen while the tarmac stayed in the middle. */
+  return roadX(sCar)+drift*ROADH*0.80+camKickX;
 }
 function screenCar(car,visX){
   if(car.isPlayer){
@@ -1687,8 +1753,7 @@ function drawRace(alpha,ms,dt){
   var sCar=camZ+CARD;
   var spdK=Math.max(0,Math.min(1,(Math.abs(SPD)-140)/(MAXSPD-140)));
   var dmgRatio=Math.min(1,pDamage.length/14);
-  var camX=roadX(camZ)+0.90*(roadX(sCar)-roadX(camZ));
-  var viewX=camX+camKickX;
+  var viewX=cameraViewX();
   var carX=roadX(sCar)+drift*ROADH;
   var shake=spdK>0.5?Math.round((Math.random()*2-1)*0.9*(spdK-0.5)/0.5):0;
   if(bumpT>0){
@@ -1860,6 +1925,7 @@ function render(ms){
   if(steps===4&&simAccum>FIXED_DT)simAccum=FIXED_DT;
   drawRace(simAccum/FIXED_DT,ms,frameDt);
   engineUpdate();
+  updateHud();
   drawHud();
   if(SCV){
     if(SCV.dataset.mode!==mode)SCV.dataset.mode=mode;
